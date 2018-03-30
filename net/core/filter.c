@@ -3757,28 +3757,6 @@ sock_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 }
 
 static const struct bpf_func_proto *
-sock_addr_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
-{
-	switch (func_id) {
-	/* inet and inet6 sockets are created in a process
-	 * context so there is always a valid uid/gid
-	 */
-	case BPF_FUNC_get_current_uid_gid:
-		return &bpf_get_current_uid_gid_proto;
-	case BPF_FUNC_bind:
-		switch (prog->expected_attach_type) {
-		case BPF_CGROUP_INET4_CONNECT:
-		case BPF_CGROUP_INET6_CONNECT:
-			return &bpf_bind_proto;
-		default:
-			return NULL;
-		}
-	default:
-		return bpf_base_func_proto(func_id);
-	}
-}
-
-static const struct bpf_func_proto *
 sk_filter_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
@@ -3933,7 +3911,8 @@ sock_ops_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	}
 }
 
-static const struct bpf_func_proto *sk_msg_func_proto(enum bpf_func_id func_id)
+static const struct bpf_func_proto *
+sk_msg_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_msg_redirect_map:
@@ -3949,7 +3928,8 @@ static const struct bpf_func_proto *sk_msg_func_proto(enum bpf_func_id func_id)
 	}
 }
 
-static const struct bpf_func_proto *sk_skb_func_proto(enum bpf_func_id func_id)
+static const struct bpf_func_proto *
+sk_skb_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 {
 	switch (func_id) {
 	case BPF_FUNC_skb_store_bytes:
@@ -4112,11 +4092,10 @@ static bool lwt_is_valid_access(int off, int size,
 	return bpf_skb_is_valid_access(off, size, type, prog, info);
 }
 
-
-/* Attach type specific accesses */
-static bool __sock_filter_check_attach_type(int off,
-					    enum bpf_access_type access_type,
-					    enum bpf_attach_type attach_type)
+static bool sock_filter_is_valid_access(int off, int size,
+					enum bpf_access_type type,
+					const struct bpf_prog *prog,
+					struct bpf_insn_access_aux *info)
 {
 	switch (off) {
 	case offsetof(struct bpf_sock, bound_dev_if):
@@ -4398,6 +4377,7 @@ static bool sk_skb_is_valid_access(int off, int size,
 
 static bool sk_msg_is_valid_access(int off, int size,
 				   enum bpf_access_type type,
+				   const struct bpf_prog *prog,
 				   struct bpf_insn_access_aux *info)
 {
 	if (type == BPF_WRITE)
