@@ -28,7 +28,7 @@
 #include <linux/regulator/consumer.h>
 #endif
 #ifdef CONFIG_DRM
-#include <drm/drm_notifier.h>
+#include <linux/msm_drm_notify.h>
 #include <linux/notifier.h>
 #include <linux/fb.h>
 #endif
@@ -472,7 +472,7 @@ struct goodix_ts_core {
 
 	struct notifier_block ts_notifier;
 #ifdef CONFIG_DRM
-	struct notifier_block fb_notifier;
+	struct notifier_block msm_drm_notifier;
 #endif
 	struct notifier_block charger_notifier;
 	struct workqueue_struct *event_wq;
