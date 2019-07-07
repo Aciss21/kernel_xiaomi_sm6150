@@ -41,7 +41,7 @@
 #include <linux/times.h>
 #include <linux/time.h>
 #if defined(CONFIG_DRM)
-#include <drm/drm_notifier.h>
+#include <linux/msm_drm_notify.h>
 #elif defined(CONFIG_FB)
 #include <linux/notifier.h>
 #include <linux/fb.h>
@@ -1453,27 +1453,27 @@ static int check_fps(unsigned long event, void *data)
 
 
 #if defined(CONFIG_DRM)
-static int drm_notifier_callback(struct notifier_block *self,
+static int msm_drm_notifier_callback(struct notifier_block *self,
 		unsigned long event, void *data)
 {
 	struct fts_ts_data *ts_data = container_of(self, struct fts_ts_data,
-					fb_notif);
-	struct drm_notify_data *fbdata = data;
+					msm_drm_notifier);
+	struct msm_drm_notifier *msm_drm_event = data;
 	int blank;
 
-	if (check_fps(event, fbdata->data))
+	if (check_fps(event, msm_drm_event->data))
 		return 0;
 
-	if (fbdata && fbdata->data && fts_data) {
-		blank = *(int *)(fbdata->data);
+	if (msm_drm_event && msm_drm_event->data && fts_data) {
+		blank = *(int *)(msm_drm_event->data);
 		/* FTS_INFO("notifier tp event:%d, code:%d.", event, blank); */
 		flush_workqueue(fts_data->ts_workqueue);
-		if (event == DRM_EARLY_EVENT_BLANK && (blank == DRM_BLANK_POWERDOWN ||
-			blank == DRM_BLANK_LP1 || blank == DRM_BLANK_LP2)) {
-			FTS_INFO("touchpanel suspend by %s", blank == DRM_BLANK_POWERDOWN ? "blank" : "doze");
+		if (event == MSM_DRM_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
+			blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
+			FTS_INFO("touchpanel suspend by %s", blank == MSM_DRM_BLANK_POWERDOWN ? "blank" : "doze");
 			cancel_work_sync(&fts_data->resume_work);
 			fts_ts_suspend(ts_data->dev);
-		} else if (event == DRM_EVENT_BLANK && blank == DRM_BLANK_UNBLANK) {
+		} else if (event == MSM_DRM_EVENT_BLANK && blank == MSM_DRM_BLANK_UNBLANK) {
 			FTS_INFO("touchpanel resume");
 			queue_work(fts_data->ts_workqueue, &fts_data->resume_work);
 		}
@@ -2198,10 +2198,10 @@ static int fts_ts_probe_entry(struct fts_ts_data *ts_data)
 #endif
 
 #if defined(CONFIG_DRM)
-	ts_data->fb_notif.notifier_call = drm_notifier_callback;
-	ret = drm_register_client(&ts_data->fb_notif);
+	ts_data->msm_drm_notifier.notifier_call = msm_drm_notifier_callback;
+	ret = msm_drm_register_client(&ts_data->msm_drm_notifier);
 	if (ret) {
-		FTS_ERROR("[DRM]Unable to register fb_notifier: %d\n", ret);
+		FTS_ERROR("[DRM]Unable to register msm_drm_notifier: %d\n", ret);
 	}
 
 #elif defined(CONFIG_FB)
@@ -2289,8 +2289,8 @@ static int fts_ts_remove_entry(struct fts_ts_data *ts_data)
 	if (ts_data->ts_workqueue)
 		destroy_workqueue(ts_data->ts_workqueue);
 #if defined(CONFIG_DRM)
-	if (drm_unregister_client(&ts_data->fb_notif))
-		FTS_ERROR("[DRM]Error occurred while unregistering drm_notifier.");
+	if (msm_drm_unregister_client(&ts_data->msm_drm_notifier))
+		FTS_ERROR("[DRM]Error occurred while unregistering msm_drm_notifier.");
 #elif defined(CONFIG_FB)
 	if (fb_unregister_client(&ts_data->fb_notif))
 		FTS_ERROR("[FB]Error occurred while unregistering fb_notifier.");

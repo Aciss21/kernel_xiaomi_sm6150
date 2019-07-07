@@ -984,7 +984,7 @@ int goodix_ts_unregister_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL(goodix_ts_unregister_notifier);
 
 /**
- * fb_notifier_call_chain - notify clients of fb_events
+ * msm_drm_notifier_call_chain - notify clients of msm_drm_notifier
  * see enum ts_notify_event in goodix_ts_core.h
  */
 int goodix_ts_blocking_notify(enum ts_notify_event evt, void *v)
@@ -1958,27 +1958,27 @@ static void goodix_ts_suspend_work(struct work_struct *work)
 
 #ifdef CONFIG_DRM
 /**
- * goodix_ts_fb_notifier_callback - Framebuffer notifier callback
- * Called by kernel during framebuffer blanck/unblank phrase
+ * goodix_ts_msm_drm_notifier_callback - msm drm notifier callback
+ * Called by kernel during drm blanck/unblank phrase
  */
-int goodix_ts_fb_notifier_callback(struct notifier_block *self,
+int goodix_ts_msm_drm_notifier_callback(struct notifier_block *self,
 	unsigned long event, void *data)
 {
 
 	struct goodix_ts_core *core_data =
-		container_of(self, struct goodix_ts_core, fb_notifier);
-	struct drm_notify_data *fb_event = data;
+		container_of(self, struct goodix_ts_core, msm_drm_notifier);
+	struct msm_drm_notifier *msm_drm_event = data;
 	int blank;
 
-	if (fb_event && fb_event->data && core_data) {
-		blank = *(int *)(fb_event->data);
+	if (msm_drm_event && msm_drm_event->data && core_data) {
+		blank = *(int *)(msm_drm_event->data);
 		/* ts_info("notifier tp event:%d, code:%d.", event, blank); */
 		flush_workqueue(core_data->event_wq);
-		if (event == DRM_EARLY_EVENT_BLANK && (blank == DRM_BLANK_POWERDOWN ||
-			blank == DRM_BLANK_LP1 || blank == DRM_BLANK_LP2)) {
-			ts_info("touchpanel suspend by %s", blank == DRM_BLANK_POWERDOWN ? "blank" : "doze");
+		if (event == MSM_DRM_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
+			blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
+			ts_info("touchpanel suspend by %s", blank == MSM_DRM_BLANK_POWERDOWN ? "blank" : "doze");
 			queue_work(core_data->event_wq, &core_data->suspend_work);
-		} else if (event == DRM_EVENT_BLANK && blank == DRM_BLANK_UNBLANK) {
+		} else if (event == MSM_DRM_EVENT_BLANK && blank == MSM_DRM_BLANK_UNBLANK) {
 			ts_info("touchpanel resume");
 			queue_work(core_data->event_wq, &core_data->resume_work);
 		}
@@ -2490,10 +2490,10 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 	device_init_wakeup(&cd->pdev->dev, 1);
 
 #ifdef CONFIG_DRM
-	cd->fb_notifier.notifier_call = goodix_ts_fb_notifier_callback;
-	ret = drm_register_client(&cd->fb_notifier);
+	cd->msm_drm_notifier.notifier_call = goodix_ts_msm_drm_notifier_callback;
+	ret = msm_drm_register_client(&cd->msm_drm_notifier);
 	if (ret)
-		ts_err("Failed to register fb notifier client:%d", ret);
+		ts_err("Failed to register drm notifier client:%d", ret);
 #endif
 
 	cd->charger_notifier.notifier_call = goodix_ts_charger_notifier_callback;
@@ -3090,7 +3090,7 @@ static int goodix_ts_remove(struct platform_device *pdev)
 	if (core_data->init_stage >= CORE_INIT_STAGE2) {
 		hw_ops->irq_enable(core_data, false);
 	#ifdef CONFIG_DRM
-		fb_unregister_client(&core_data->fb_notifier);
+		msm_drm_unregister_client(&core_data->msm_drm_notifier);
 	#endif
 		core_module_prob_sate = CORE_MODULE_REMOVED;
 		if (atomic_read(&core_data->ts_esd.esd_on))
