@@ -571,14 +571,13 @@ out:
 	return err;
 }
 
-static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
-		int write)
+static ssize_t proc_sys_call_handler(struct file *filp, void __user *ubuf,
+		size_t count, loff_t *ppos, int write)
 {
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct ctl_table_header *head = grab_header(inode);
 	struct ctl_table *table = PROC_I(inode)->sysctl_entry;
-	size_t count = iov_iter_count(iter);
-	char *kbuf;
+	void *kbuf;
 	ssize_t error;
 
 	if (IS_ERR(head))
@@ -597,34 +596,32 @@ static ssize_t proc_sys_call_handler(struct kiocb *iocb, struct iov_iter *iter,
 	if (!table->proc_handler)
 		goto out;
 
-	/* don't even try if the size is too large */
-	error = -ENOMEM;
-	if (count >= KMALLOC_MAX_SIZE)
-		goto out;
-	kbuf = kzalloc(count + 1, GFP_KERNEL);
-	if (!kbuf)
-		goto out;
-
 	if (write) {
-		error = -EFAULT;
-		if (!copy_from_iter_full(kbuf, count, iter))
-			goto out_free_buf;
-		kbuf[count] = '\0';
+		kbuf = memdup_user_nul(ubuf, count);
+		if (IS_ERR(kbuf)) {
+			error = PTR_ERR(kbuf);
+			goto out;
+		}
+	} else {
+		error = -ENOMEM;
+		kbuf = kzalloc(count, GFP_KERNEL);
+		if (!kbuf)
+			goto out;
 	}
 
 	error = BPF_CGROUP_RUN_PROG_SYSCTL(head, table, write, &kbuf, &count,
-					   &iocb->ki_pos);
+					   ppos);
 	if (error)
 		goto out_free_buf;
 
 	/* careful: calling conventions are nasty here */
-	error = table->proc_handler(table, write, kbuf, &count, &iocb->ki_pos);
+	error = table->proc_handler(table, write, kbuf, &count, ppos);
 	if (error)
 		goto out_free_buf;
 
 	if (!write) {
 		error = -EFAULT;
-		if (copy_to_iter(kbuf, count, iter) < count)
+		if (copy_to_user(ubuf, kbuf, count))
 			goto out_free_buf;
 	}
 
