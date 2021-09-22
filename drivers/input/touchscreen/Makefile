@@ -127,3 +127,5 @@ obj-$(CONFIG_TOUCHSCREEN_NVT_F7B) += lct_tp_info.o
 obj-$(CONFIG_TOUCHSCREEN_NVT_F7B) += lct_tp_work.o
 obj-$(CONFIG_TOUCHSCREEN_NVT_F7B) += lct_tp_gesture.o
 obj-$(CONFIG_TOUCHSCREEN_NVT_F7B) += lct_tp_grip_area.o
+obj-$(CONFIG_TOUCHSCREEN_FTS) += focaltech_spi/
+obj-$(CONFIG_TOUCHSCREEN_GOODIX_BRL) += gt9897t/

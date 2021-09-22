@@ -19,6 +19,8 @@ source "drivers/input/touchscreen/gt9896/Kconfig"
 source "drivers/input/touchscreen/nt36672c/Kconfig"
 source "drivers/input/touchscreen/nvt_touch_f7b/Kconfig"
 source "drivers/input/touchscreen/xiaomi/Kconfig"
+source "drivers/input/touchscreen/focaltech_spi/Kconfig"
+source "drivers/input/touchscreen/gt9897t/Kconfig"
 
 config TOUCHSCREEN_NVT_F7B
 	tristate "novatek touchscreens"
