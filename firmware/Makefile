@@ -36,6 +36,8 @@ fw-shipped-$(CONFIG_TOUCHSCREEN_NT36xxx_HOSTDL_SPI) += novatek_ts_fw.bin
 
 fw-shipped-$(CONFIG_TOUCHSCREEN_FTS) += focaltech_ts_fw.bin
 
+fw-shipped-$(CONFIG_TOUCHSCREEN_GOODIX_BRL) += goodix_gt9897t_cfg.bin goodix_gt9897t_fw.bin
+
 fw-shipped-all := $(fw-shipped-y) $(fw-shipped-m) $(fw-shipped-)
 quiet_cmd_ihex  = IHEX    $@
       cmd_ihex  = $(OBJCOPY) -Iihex -Obinary $< $@
