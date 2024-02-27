@@ -572,7 +572,7 @@ find_matching_se(struct sched_entity **se, struct sched_entity **pse)
 #ifdef CONFIG_SCHED_BORE
 uint __read_mostly sched_bore                   = 1;
 uint __read_mostly sched_burst_smoothness_long  = 1;
-uint __read_mostly sched_burst_smoothness_short = 0;
+uint __read_mostly sched_burst_smoothness_short = 1;
 uint __read_mostly sched_burst_fork_atavistic   = 2;
 uint __read_mostly sched_burst_penalty_offset   = 22;
 uint __read_mostly sched_burst_penalty_scale    = 1280;
