@@ -621,7 +621,6 @@ static int aw8624_haptic_stop_delay(struct aw8624 *aw8624)
 
 static int aw8624_haptic_stop(struct aw8624 *aw8624)
 {
-
 	aw8624_haptic_play_go(aw8624, false);
 	aw8624_haptic_stop_delay(aw8624);
 	aw8624_haptic_play_mode(aw8624, AW8624_HAPTIC_STANDBY_MODE);
@@ -2159,7 +2158,6 @@ static void aw8624_vibrator_work_routine(struct work_struct *work)
 
 static int aw8624_vibrator_init(struct aw8624 *aw8624)
 {
-
 	hrtimer_init(&aw8624->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 	aw8624->timer.function = aw8624_vibrator_timer_func;
 	INIT_WORK(&aw8624->vibrator_work, aw8624_vibrator_work_routine);
@@ -2230,7 +2228,7 @@ static irqreturn_t aw8624_irq(int irq, void *data)
 		pr_err("%s: chip over temperature int error\n", __func__);
 	}
 	if (reg_val & AW8624_BIT_SYSINT_DONEI) {
-		pr_debug("%s chip playback done\n", __func__);
+		pr_info("%s chip playback done\n", __func__);
 		/* mask donei */
 		aw8624_haptic_set_ram_donei(aw8624, false);
 	}
@@ -2277,9 +2275,6 @@ static irqreturn_t aw8624_irq(int irq, void *data)
 				mutex_unlock(&aw8624->rtp_lock);
 			}
 		}
-	}
-
-	if (reg_val & AW8624_BIT_SYSINT_FF_AFI) {
 	}
 
 	if (aw8624->play_mode != AW8624_HAPTIC_RTP_MODE
@@ -2779,6 +2774,8 @@ static void aw8624_haptics_set_gain_work_routine(struct work_struct *work)
 			comp_level = 128 * AW8624_VBAT_REFER / AW8624_VBAT_MIN;
 		}
 		aw8624_i2c_write(aw8624, AW8624_REG_DATDBG, aw8624_haptic_set_level(aw8624, comp_level));
+	} else {
+		aw8624_i2c_write(aw8624, AW8624_REG_DATDBG, aw8624_haptic_set_level(aw8624, aw8624->level));
 	}
 }
 
@@ -2878,7 +2875,6 @@ static int select_pin_ctl(struct aw8624 *aw8624, const char *name)
 		if (!strncmp(n, name, strlen(n))) {
 			rc = pinctrl_select_state(aw8624->aw8624_pinctrl,
 						  aw8624->pinctrl_state[i]);
-			if (rc)
 			goto exit;
 		}
 	}
