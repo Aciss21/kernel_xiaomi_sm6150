@@ -674,9 +674,12 @@ static unsigned char aw8624_haptic_set_level(struct aw8624 *aw8624, int gain)
 {
 	int val = 80;
 
-	val = aw8624->ulevel * gain / 128;
-	if (val > 255)
-		val = 255;
+    val = aw8624->ulevel * gain / 128;
+    if (val > 255) {
+        val = 255;
+    }
+
+    aw8624->gain = val & 0xFF;
 
 	return val;
 }
@@ -3174,7 +3177,7 @@ static ssize_t aw8624_gain_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct aw8624 *aw8624 = dev_get_drvdata(dev);
-	return snprintf(buf, PAGE_SIZE, "0x%02x\n", aw8624->level);
+	return snprintf(buf, PAGE_SIZE, "0x%02x\n", aw8624->gain);
 }
 
 static ssize_t aw8624_gain_store(struct device *dev,
@@ -3200,7 +3203,7 @@ static ssize_t aw8624_ulevel_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
 	struct aw8624 *aw8624 = dev_get_drvdata(dev);
-	return snprintf(buf, PAGE_SIZE, "0x%02x\n", aw8624->gain);
+	return snprintf(buf, PAGE_SIZE, "%d\n", aw8624->ulevel);
 }
 
 static ssize_t aw8624_ulevel_store(struct device *dev,
@@ -3222,7 +3225,7 @@ static ssize_t aw8624_ulevel_store(struct device *dev,
 
 	mutex_lock(&aw8624->lock);
 	aw8624->ulevel = val;
-	aw8624_haptic_set_gain(aw8624, aw8624->gain);
+	aw8624_haptic_set_gain(aw8624, aw8624->level);
 	mutex_unlock(&aw8624->lock);
 	return count;
 }
@@ -3790,6 +3793,19 @@ static ssize_t aw8624_osc_cali_store(struct device *dev,
 	return count;
 }
 
+static ssize_t aw8624_osc_save_show(struct device *dev,
+				    struct device_attribute *attr, char *buf)
+{
+	struct aw8624 *aw8624 = dev_get_drvdata(dev);
+	ssize_t len = 0;
+
+	len +=
+	    snprintf(buf + len, PAGE_SIZE - len, "0x%x\n",
+		     aw8624->lra_calib_data);
+
+	return len;
+}
+
 static ssize_t aw8624_osc_save_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t count)
@@ -3877,8 +3893,8 @@ static DEVICE_ATTR(index, S_IWUSR | S_IRUGO, aw8624_index_show,
 		   aw8624_index_store);
 static DEVICE_ATTR(gain, S_IWUSR | S_IRUGO, aw8624_gain_show,
 		   aw8624_gain_store);
-static DEVICE_ATTR(ulevel, 0644, aw8624_ulevel_show,
-		  aw8624_ulevel_store);
+static DEVICE_ATTR(ulevel, S_IWUSR | S_IRUGO, aw8624_ulevel_show,
+                   aw8624_ulevel_store);
 static DEVICE_ATTR(seq, S_IWUSR | S_IRUGO, aw8624_seq_show, aw8624_seq_store);
 static DEVICE_ATTR(loop, S_IWUSR | S_IRUGO, aw8624_loop_show,
 		   aw8624_loop_store);
@@ -3912,7 +3928,7 @@ static DEVICE_ATTR(osc_cali, S_IWUSR | S_IRUGO, aw8624_osc_cali_show,
 		   aw8624_osc_cali_store);
 static DEVICE_ATTR(f0_save, S_IWUSR | S_IRUGO, aw8624_f0_save_show,
 		   aw8624_f0_save_store);
-static DEVICE_ATTR(osc_save, S_IWUSR | S_IRUGO, aw8624_osc_cali_show,
+static DEVICE_ATTR(osc_save, S_IWUSR | S_IRUGO, aw8624_osc_save_show,
 		   aw8624_osc_save_store);
 
 static struct attribute *aw8624_vibrator_attributes[] = {
