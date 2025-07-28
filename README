@@ -1,18 +1,37 @@
-Linux kernel
-============
+Tobrut Exotic Kernel
 
-This file was moved to Documentation/admin-guide/README.rst
+🔥 Tobrut Exotic adalah kernel eksperimental dan optimalisasi berbasis Vantom yang dirancang khusus untuk perangkat Redmi Note 10 Pro/Pro Max (sweet & sweetin). Kernel ini mengutamakan efisiensi daya, performa gaming, serta kestabilan sistem, tanpa mengorbankan fitur-fitur penting.
 
-Please notice that there are several guides for kernel developers and users.
-These guides can be rendered in a number of formats, like HTML and PDF.
+🔧 Fitur Unggulan:
 
-In order to build the documentation, use ``make htmldocs`` or
-``make pdfdocs``.
+Base Kernel: Vantom (clean & stable)
 
-There are various text files in the Documentation/ subdirectory,
-several of them using the Restructured Text markup notation.
-See Documentation/00-INDEX for a list of what is contained in each file.
+Step Charging: Multi-step berbasis suhu & persentase baterai, maksimal 33W (dengan arus 4.5A), memastikan keamanan dan umur baterai
 
-Please read the Documentation/process/changes.rst file, as it contains the
-requirements for building and running the kernel, and information about
-the problems which may result by upgrading your kernel.
+Dukungan Dual Charger: BQ25970 & LN8000, dikonfigurasi aman dengan proteksi termal aktif
+
+UFS Devfreq Optimization: Scaling efisien dengan governor sched, timeout & clk gating disesuaikan, konsumsi daya berkurang drastis
+
+PM & CPUFreq Full Support: Dengan schedutil aktif default untuk balancing performa dan efisiensi
+
+JEITA Thermal Profiling: Kontrol termal adaptif untuk mempertahankan charging yang aman
+
+Idle Friendly: SPM & RPM level tuning, runtime PM aktif, mendukung efisiensi saat tidak digunakan
+
+Compatibilitas MIUI & AOSP: Kernel fleksibel, bekerja baik di kedua ekosistem
+
+
+⚙️ Target Utama:
+
+Mencapai performa tinggi saat dibutuhkan
+
+Meminimalisir konsumsi daya idle & background
+
+Tetap menjaga batas aman suhu dan arus
+
+
+📦 Device Support:
+
+sweet (Redmi Note 10 Pro India)
+
+sweetin (Redmi Note 10 Pro Global)
