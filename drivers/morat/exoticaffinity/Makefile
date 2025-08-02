@@ -1,0 +1,1 @@
+obj-$(CONFIG_EXOTIC_AFFINITY) += exoticaffinity.o
