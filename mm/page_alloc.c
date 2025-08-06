@@ -3905,7 +3905,7 @@ static void wake_all_kswapds(unsigned int order, const struct alloc_context *ac)
 		last_pgdat = zone->zone_pgdat;
 	}
 }
-
+__attribute__((unused))
 static void wake_all_kshrinkds(const struct alloc_context *ac)
 {
 	pg_data_t *p, *last_pgdat = NULL;
