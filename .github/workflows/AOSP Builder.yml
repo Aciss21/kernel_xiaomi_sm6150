@@ -35,6 +35,10 @@ jobs:
     - name: 📥 Clone kernelSU-Next
       run: curl -LSs "https://raw.githubusercontent.com/Mr-Morat/KernelSU-Next/susfs/kernel/setup.sh" | bash -s susfs
       
+    - name: 📅 Set BUILD DATE
+      run: |
+        echo "BUILD_DATE='\"$(TZ=Asia/Jakarta date '+%b %d %Y')\"'" >> $GITHUB_ENV
+      
     - name: 🛠️ Build Kernel
       run: |
         export ARCH=arm64
@@ -42,6 +46,8 @@ jobs:
         export KBUILD_BUILD_USER=Brutalist
         export KBUILD_BUILD_HOST=MoratRealm
         export KBUILD_COMPILER_STRING="$$CLANG_PATH/clang"
+        export BUILD_DATE=$BUILD_DATE
+        export CFLAGS_EXTRA="-DBUILD_DATE=$BUILD_DATE"
         make O=out ARCH=arm64 sweet_defconfig
         make -j$(nproc --all) O=out ARCH=arm64 LLVM=1 LLVM_IAS=1 CC=clang \
           CLANG_TRIPLE=$CLANG_PATH/aarch64-linux-gnu- \
