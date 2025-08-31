@@ -68,10 +68,10 @@ jobs:
         cp out/arch/arm64/boot/dtbo.img AnyKernel3/dtbo.img
         cp out/arch/arm64/boot/dtb.img AnyKernel3/dtb.img
         cd AnyKernel3
-        zip -r "../TobrutExotic-AOSP-${{ env.BUILD_TIME }}.zip" *
+        zip -r "../BruthXotic-AOSP-${{ env.BUILD_TIME }}.zip" *
         
     - name: 📤 Upload Flashable zip
       uses: actions/upload-artifact@v4
       with:
-        name: TobrutExotic-AOSP-${{ env.BUILD_TIME }}
+        name: BruthXotic-AOSP-${{ env.BUILD_TIME }}
         path: AnyKernel3/*
