@@ -1,13 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * kernel/power/wakelock.c
+ * ExoticWakelock Filter
+ * - Aggressive-but-safe blocking when screen is off
+ * - Preserves key features: DT2W, face unlock, audio/media playback
  *
- * User space wakeup sources support.
- *
- * Copyright (C) 2012 Rafael J. Wysocki <rjw@sisk.pl>
- *
- * This code is based on the analogous interface allowing user space to
- * manipulate wakelocks on Android.
+ * Copyright (C) 2012 Rafael J. Wysocki
+ * ExoticWakelock by Mr. Morat
  */
 
 #include <linux/capability.h>
@@ -20,17 +18,19 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 #include <linux/sched.h>
-
+#include <linux/fb.h>
+#include <linux/notifier.h>
+#include <linux/printk.h>
 #include "power.h"
 
 static DEFINE_MUTEX(wakelocks_lock);
 
 struct wakelock {
-	char			*name;
-	struct rb_node		node;
-	struct wakeup_source	*ws;
+	char *name;
+	struct rb_node node;
+	struct wakeup_source *ws;
 #ifdef CONFIG_PM_WAKELOCKS_GC
-	struct list_head	lru;
+	struct list_head lru;
 #endif
 };
 
@@ -43,44 +43,33 @@ ssize_t pm_show_wakelocks(char *buf, bool show_active)
 	int len = 0;
 
 	mutex_lock(&wakelocks_lock);
-
 	for (node = rb_first(&wakelocks_tree); node; node = rb_next(node)) {
 		wl = rb_entry(node, struct wakelock, node);
 		if (wl->ws->active == show_active)
 			len += sysfs_emit_at(buf, len, "%s ", wl->name);
 	}
 	len += sysfs_emit_at(buf, len, "\n");
-
 	mutex_unlock(&wakelocks_lock);
 	return len;
 }
 
 #if CONFIG_PM_WAKELOCKS_LIMIT > 0
 static unsigned int number_of_wakelocks;
-
 static inline bool wakelocks_limit_exceeded(void)
 {
 	return number_of_wakelocks > CONFIG_PM_WAKELOCKS_LIMIT;
 }
-
-static inline void increment_wakelocks_number(void)
-{
-	number_of_wakelocks++;
-}
-
-static inline void decrement_wakelocks_number(void)
-{
-	number_of_wakelocks--;
-}
-#else /* CONFIG_PM_WAKELOCKS_LIMIT = 0 */
+static inline void increment_wakelocks_number(void) { number_of_wakelocks++; }
+static inline void decrement_wakelocks_number(void) { number_of_wakelocks--; }
+#else
 static inline bool wakelocks_limit_exceeded(void) { return false; }
 static inline void increment_wakelocks_number(void) {}
 static inline void decrement_wakelocks_number(void) {}
-#endif /* CONFIG_PM_WAKELOCKS_LIMIT */
+#endif
 
 #ifdef CONFIG_PM_WAKELOCKS_GC
-#define WL_GC_COUNT_MAX	100
-#define WL_GC_TIME_SEC	300
+#define WL_GC_COUNT_MAX 100
+#define WL_GC_TIME_SEC  300
 
 static void __wakelocks_gc(struct work_struct *work);
 static LIST_HEAD(wakelocks_lru_list);
@@ -126,8 +115,8 @@ static void __wakelocks_gc(struct work_struct *work)
 			decrement_wakelocks_number();
 		}
 	}
-	wakelocks_gc_count = 0;
 
+	wakelocks_gc_count = 0;
 	mutex_unlock(&wakelocks_lock);
 }
 
@@ -136,38 +125,25 @@ static void wakelocks_gc(void)
 	bool expedite;
 	int cpu = get_cpu();
 
-	/*
-	 * If the current CPU isn't occupied, go ahead and
-	 * garbage collect inactive wakelocks.
-	 */
 	expedite = idle_cpu(cpu);
-
 	put_cpu();
 
 	if (expedite)
 		goto do_gc;
 
-	/*
-	 * If our CPU is busy, allow wakelocks to
-	 * accumulate before attempting to garbage collect.
-	 * If by the time we register WL_GC_COUNT_MAX
-	 * wakelocks and the current CPU is still busy,
-	 * run the garbage collecton anyway.
-	 */
 	if (++wakelocks_gc_count <= WL_GC_COUNT_MAX)
 		return;
 
 do_gc:
 	schedule_work(&wakelock_work);
 }
-#else /* !CONFIG_PM_WAKELOCKS_GC */
+#else
 static inline void wakelocks_lru_add(struct wakelock *wl) {}
 static inline void wakelocks_lru_most_recent(struct wakelock *wl) {}
 static inline void wakelocks_gc(void) {}
-#endif /* !CONFIG_PM_WAKELOCKS_GC */
+#endif
 
-static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
-					    bool add_if_not_found)
+static struct wakelock *wakelock_lookup_add(const char *name, size_t len, bool add_if_not_found)
 {
 	struct rb_node **node = &wakelocks_tree.rb_node;
 	struct rb_node *parent = *node;
@@ -190,13 +166,13 @@ static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
 		else
 			node = &(*node)->rb_right;
 	}
+
 	if (!add_if_not_found)
 		return ERR_PTR(-EINVAL);
 
 	if (wakelocks_limit_exceeded())
 		return ERR_PTR(-ENOSPC);
 
-	/* Not found, we have to add a new one. */
 	wl = kzalloc(sizeof(*wl), GFP_KERNEL);
 	if (!wl)
 		return ERR_PTR(-ENOMEM);
@@ -222,6 +198,101 @@ static struct wakelock *wakelock_lookup_add(const char *name, size_t len,
 	return wl;
 }
 
+/*
+ * ExoticWakelock blocked list:
+ * - Start from aggressive + safe core
+ * - Actual blocking only happens when screen is OFF AND no sensor-event override
+ */
+static const char *blocked_wakelocks[] = {
+	"ufs_hba", "ufs_pm", "ufsclks", "ufs-event", "ufs-busmon",
+	"scsi_eh", "sdcardfs", "vold",
+	"cam", "camsensor", "camera_power", "cam_req_mgr",
+	"sensor_ind", "sensor_wakeup", "sensortest",
+	"audio_dl", "audiohal", "audiod", "audio_wakelock",
+	"media.codec", "Codec2",
+	"wlan_timer", "wifi_low_latency",
+	"net_scheduler", "ipa_ws",
+	"logd", "dp_wakelock", "system_suspend", "ssr",
+	"timerfd",
+
+	NULL
+};
+
+static bool screen_is_off;
+static bool sensor_event_active;
+
+void wakelock_filter_sensor_event_start(void) { sensor_event_active = true; }
+void wakelock_filter_sensor_event_end(void)   { sensor_event_active = false; }
+
+EXPORT_SYMBOL_GPL(wakelock_filter_sensor_event_start);
+EXPORT_SYMBOL_GPL(wakelock_filter_sensor_event_end);
+
+static inline bool name_has(const char *name, const char *key)
+{
+	return key && name && strstr(name, key);
+}
+
+static bool should_block_wakelock(const char *name)
+{
+	const char **wl;
+
+	if (!screen_is_off)
+		return false;
+
+	if (sensor_event_active)
+		return false;
+
+	/* Whitelist: do NOT block these functional categories */
+	if (name_has(name, "dt2w")        ||
+	    name_has(name, "double_tap")  ||
+	    name_has(name, "faceunlock")  ||
+	    name_has(name, "facerecog")   ||
+	    name_has(name, "fingerprint") ||
+	    name_has(name, "proximity")   || 
+	    name_has(name, "media")       ||
+	    name_has(name, "audio")       ||
+	    name_has(name, "music")       ||
+	    name_has(name, "player")      ||
+	    name_has(name, "video"))
+		return false;
+
+	/* Aggressive list check (safe + extended) */
+	for (wl = blocked_wakelocks; *wl; wl++) {
+		if (strstr(name, *wl))
+			return true;
+	}
+
+	return false;
+}
+
+static int fb_notifier_callback(struct notifier_block *self,
+				unsigned long event, void *data)
+{
+	struct fb_event *evdata = data;
+	int *blank;
+
+	if (event != FB_EVENT_BLANK || !evdata || !evdata->data)
+		return NOTIFY_DONE;
+
+	blank = evdata->data;
+	screen_is_off = (*blank != FB_BLANK_UNBLANK);
+
+	pr_info("ExoticWakelock: screen_is_off=%d sensor_event_active=%d\n",
+		screen_is_off, sensor_event_active);
+	return NOTIFY_OK;
+}
+
+static struct notifier_block fb_notif = {
+	.notifier_call = fb_notifier_callback,
+};
+
+static int __init wakelock_exotic_init(void)
+{
+	fb_register_client(&fb_notif);
+	return 0;
+}
+late_initcall(wakelock_exotic_init);
+
 int pm_wake_lock(const char *buf)
 {
 	const char *str = buf;
@@ -235,13 +306,18 @@ int pm_wake_lock(const char *buf)
 
 	while (*str && !isspace(*str))
 		str++;
-
 	len = str - buf;
 	if (!len)
 		return -EINVAL;
 
+	/* Exotic filter: block only when policy says so */
+	if (should_block_wakelock(buf)) {
+		pr_info("ExoticWakelock: BLOCK %.*s (screen_off=%d, sensor=%d)\n",
+			(int)len, buf, screen_is_off, sensor_event_active);
+		return 0;
+	}
+
 	if (*str && *str != '\n') {
-		/* Find out if there's a valid timeout string appended. */
 		ret = kstrtou64(skip_spaces(str), 10, &timeout_ns);
 		if (ret)
 			return -EINVAL;
@@ -254,9 +330,9 @@ int pm_wake_lock(const char *buf)
 		ret = PTR_ERR(wl);
 		goto out;
 	}
+
 	if (timeout_ns) {
 		u64 timeout_ms = timeout_ns + NSEC_PER_MSEC - 1;
-
 		do_div(timeout_ms, NSEC_PER_MSEC);
 		__pm_wakeup_event(wl->ws, timeout_ms);
 	} else {
@@ -264,8 +340,7 @@ int pm_wake_lock(const char *buf)
 	}
 
 	wakelocks_lru_most_recent(wl);
-
- out:
+out:
 	mutex_unlock(&wakelocks_lock);
 	return ret;
 }
@@ -282,10 +357,8 @@ int pm_wake_unlock(const char *buf)
 	len = strlen(buf);
 	if (!len)
 		return -EINVAL;
-
-	if (buf[len-1] == '\n')
+	if (buf[len - 1] == '\n')
 		len--;
-
 	if (!len)
 		return -EINVAL;
 
@@ -296,12 +369,12 @@ int pm_wake_unlock(const char *buf)
 		ret = PTR_ERR(wl);
 		goto out;
 	}
+
 	__pm_relax(wl->ws);
 
 	wakelocks_lru_most_recent(wl);
 	wakelocks_gc();
-
- out:
+out:
 	mutex_unlock(&wakelocks_lock);
 	return ret;
 }
