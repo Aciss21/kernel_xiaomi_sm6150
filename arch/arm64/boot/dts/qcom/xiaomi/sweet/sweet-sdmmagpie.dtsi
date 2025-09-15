@@ -172,89 +172,45 @@ And public attribution of xiaomi platforms(like F3 and so and)
 	qcom,clk-freq-in = <400000>;
 
 	bq25970-standalone@66 {
-		compatible = "ti,bq2597x-standalone";
-		reg = <0x66>;
+        compatible = "ti,bq2597x-standalone";
+        reg = <0x66>;
+        interrupt-parent = <&tlmm>;
+        interrupts = <55 0x2002>;
+        pinctrl-names = "default";
+        pinctrl-0 = <&bq2597x_int_default &bq2597x_int_suspend>;
+	    /* device configuration */
+        ti,bq2597x,bat-ovp-threshold = <4480>;
+        ti,bq2597x,bat-ovp-alarm-threshold = <4450>;
+        ti,bq2597x,bus-ovp-threshold = <12000>;
+        ti,bq2597x,bus-ovp-alarm-threshold = <11000>;
+        ti,bq2597x,bus-ocp-threshold = <3500>;
+        ti,bq2597x,bus-ocp-alarm-threshold = <3500>;
+        ti,bq2597x,bat-therm-threshold = <0x15>;
+        ti,bq2597x,bus-therm-threshold = <0x15>; 
+        ti,bq2597x,die-therm-threshold = <145>;
+        ti,bq2597x,ac-ovp-threshold = <14>;
+        ti,bq2597x,input-current-limit = <2500000>;
+        ti,bq2597x,charging-current-limit = <4000000>;
+    };
 
-		interrupt-parent = <&tlmm>;
-		interrupts = <55 0x2002>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&bq2597x_int_default &bq2597x_int_suspend>;
-
-		/*ti,bq2597x,bat-ovp-disable;*/
-		ti,bq2597x,bat-ovp-alarm-disable;
-		ti,bq2597x,bat-ocp-disable;
-		ti,bq2597x,bat-ocp-alarm-disable;
-		ti,bq2597x,bat-ucp-alarm-disable;
-		ti,bq2597x,bat-ucp-disable;
-
-		/*ti,bq2597x,bus-ovp-alarm-disable;
-		ti,bq2597x,bus-ocp-disable;
-		ti,bq2597x,bus-ocp-alarm-disable;*/
-		ti,bq2597x,bat-therm-disable;
-		ti,bq2597x,bus-therm-disable;
-		ti,bq2597x,die-therm-disable;
-
-		ti,bq2597x,bat-ovp-threshold = <4550>;
-		ti,bq2597x,bat-ovp-alarm-threshold = <4525>;
-		//ti,bq2597x,bat-ocp-threshold = <5000>;
-		//ti,bq2597x,bat-ocp-alarm-threshold = <4500>;
-
-		ti,bq2597x,bus-ovp-threshold = <12000>;
-		ti,bq2597x,bus-ovp-alarm-threshold = <11000>;
-		//ti,bq2597x,bus-ocp-threshold = <2200>;
-		//ti,bq2597x,bus-ocp-alarm-threshold = <2000>;
-		ti,bq2597x,bus-ocp-threshold = <3750>;
-		ti,bq2597x,bus-ocp-alarm-threshold = <3500>;
-
-		//ti,bq2597x,bat-ucp-alarm-threshold = <2000>;
-
-		ti,bq2597x,bat-therm-threshold = <0x15>;/*4.1%*/
-		ti,bq2597x,bus-therm-threshold = <0x15>;/*4.1%*/
-		ti,bq2597x,die-therm-threshold = <145>;
-
-		ti,bq2597x,ac-ovp-threshold = <14>;
-		//ti,bq2597x,sense-resistor-mohm = <2>;
-	};
-
-	ln8000_charger@51 {
-		compatible = "lionsemi,ln8000";
-		reg = <0x51>;
-		/* bank <bit-idx> <flags: active-low> */
-		//irq-gpios = <&tlmm 55 0x2002>;
-
-                //interrupt-parent = <&tlmm>;
-                //interrupts = <55 0x2002>;
-                //pinctrl-names = "default";
-                //pinctrl-0 = <&bq2597x_int_default &bq2597x_int_suspend>;
-		ln8000_charger,irq_index = <296>;
-		/* device configuration */
-		ln8000_charger,bat-ovp-threshold = <4560>;
-		ln8000_charger,bat-ovp-alarm-threshold = <4525>;
-		ln8000_charger,bus-ovp-threshold = <13000>;
-		ln8000_charger,bus-ovp-alarm-threshold = <11000>;
-		ln8000_charger,bus-ocp-threshold = <3750>;
-		ln8000_charger,bus-ocp-alarm-threshold = <3500>;
-		ln8000_charger,ntc-alarm-cfg = <226>;
-		/* protection enable/disable flags
-		 *   vbat-ovp-disable
-		 *   vbat-reg-disable
-		 *   iin-ocp-disable
-		 *   iin-reg-disable
-		 *   tbus-mon-disable
-		 *   tbat-mon-disable
-		 *   tdie-prot-disable
-		 *   tdie-reg-disable
-		 *   revcurr-prot-disable
-		 */
-		ln8000_charger,tdie-prot-disable;
+    ln8000_charger@51 {
+        compatible = "lionsemi,ln8000";
+        reg = <0x51>;
+        ln8000_charger,irq_index = <296>;
+    	/* device configuration */
+        ln8000_charger,bat-ovp-threshold = <4480>;
+        ln8000_charger,bat-ovp-alarm-threshold = <4450>;
+        ln8000_charger,bus-ovp-threshold = <12000>;
+        ln8000_charger,bus-ovp-alarm-threshold = <11000>;
+        ln8000_charger,bus-ocp-threshold = <3500>;
+        ln8000_charger,bus-ocp-alarm-threshold = <3500>;
+        ln8000_charger,ntc-alarm-cfg = <226>;
 		ln8000_charger,tbus-mon-disable;
-		ln8000_charger,tbat-mon-disable;
-		ln8000_charger,iin-ocp-disable;
-		ln8000_charger,iin-reg-disable;
-		ln8000_charger,tdie-reg-disable;
-		ln8000_charger,vbat-reg-disable;
-	};
-
+        ln8000_charger,iin-ocp-disable;
+        ln8000_charger,iin-reg-disable;
+        ln8000_charger,tdie-reg-disable;
+    };
+   
 	aw8624_haptic@5A {
 		compatible = "awinic,aw8624_haptic";
 	    reg = <0x5A>;
@@ -1011,11 +967,11 @@ And public attribution of xiaomi platforms(like F3 and so and)
 	vccq2-voltage-level = <1800000 1950000>;
 	spm-level = <3>;
 	rpm-level = <3>;
-	devfreq-min-freq = <100000000>;
-	devfreq-governor = "powersave";
-	qcom,limit-devfreq-on-cpu-scaling;
-	qcom,enable-hs-gear-down;
-	qcom,ufs-idle-timeout = <200>;
-	qcom,ufs-clk-gating-delay-ms = <10>;
-	qcom,disable-lpm-during-suspend = <0>;
+	devfreq-min-freq = <200000000>;
+    devfreq-governor = "sched";
+    qcom,limit-devfreq-on-cpu-scaling;
+    qcom,enable-hs-gear-down;
+    qcom,ufs-idle-timeout = <600>;
+    qcom,ufs-clk-gating-delay-ms = <50>;
+    qcom,disable-lpm-during-suspend = <0>;
 };
