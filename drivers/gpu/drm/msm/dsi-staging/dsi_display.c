@@ -98,6 +98,8 @@ void dsi_display_panel_gamma_mode_change(struct dsi_display *display,
 
 	if (adj_mode->timing.refresh_rate == 120)
 		rc = panel_disp_param_send_lock(display->panel, DISPPARAM_BC_120HZ);
+	else if (adj_mode->timing.refresh_rate == 90)
+		rc = panel_disp_param_send_lock(display->panel, DISPPARAM_BC_90HZ);
 	else if (adj_mode->timing.refresh_rate == 60)
 		rc = panel_disp_param_send_lock(display->panel, DISPPARAM_BC_60HZ);
 
@@ -7110,7 +7112,7 @@ int dsi_display_set_mode(struct dsi_display *display,
 		goto error;
 	}
 
-	if (adj_mode.timing.refresh_rate == 60)
+	if (adj_mode.timing.refresh_rate == 60 || adj_mode.timing.refresh_rate == 90)
 		dsi_display_panel_gamma_mode_change(display, &adj_mode);
 
 	if (!display->panel->cur_mode) {
