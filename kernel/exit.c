@@ -596,8 +596,8 @@ static void exit_mm(void)
 	enter_lazy_tlb(mm, current);
 	task_unlock(current);
 	mm_update_next_owner(mm);
-
 	mm_released = mmput(mm);
+
 #ifdef CONFIG_ANDROID_SIMPLE_LMK
 	clear_thread_flag(TIF_MEMDIE);
 #else
