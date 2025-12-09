@@ -530,7 +530,8 @@ void __lru_cache_add_active_or_unevictable(struct page *page,
 	VM_BUG_ON_PAGE(PageLRU(page), page);
 
 	if (likely((vma_flags & (VM_LOCKED | VM_SPECIAL)) != VM_LOCKED)) {
-		SetPageActive(page);
+		if (!lru_gen_enabled())
+			SetPageActive(page);
 		lru_cache_add(page);
 		return;
 	}
@@ -847,8 +848,6 @@ void release_pages(struct page **pages, int nr, bool cold)
 			__clear_page_lru_flags(page);
 		}
 
-		/* Clear Active bit in case of parallel mark_page_accessed */
-		__ClearPageActive(page);
 		__ClearPageWaiters(page);
 
 		list_add(&page->lru, &pages_to_free);
