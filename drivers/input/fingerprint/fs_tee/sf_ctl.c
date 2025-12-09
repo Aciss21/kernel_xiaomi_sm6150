@@ -26,7 +26,7 @@
 #include <linux/input.h>
 #include <linux/uaccess.h>
 #include <linux/spi/spi.h>
-
+#include <linux/msm_drm_notify.h>
 #include "sf_ctl.h"
 
 #if XIAOMI_DRM_INTERFACE_WA
