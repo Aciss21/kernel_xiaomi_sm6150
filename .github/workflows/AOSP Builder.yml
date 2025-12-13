@@ -39,6 +39,9 @@ jobs:
       run: |
         echo "BUILD_DATE='\"$(TZ=Asia/Jakarta date '+%b %d %Y')\"'" >> $GITHUB_ENV
       
+    - name: ⏱️ Record build start time
+      run: echo "BUILD_START=$(date +%s)" >> $GITHUB_ENV
+      
     - name: 🛠️ Build Kernel
       run: |
         export ARCH=arm64
@@ -69,6 +72,33 @@ jobs:
         cp out/arch/arm64/boot/dtb.img AnyKernel3/dtb.img
         cd AnyKernel3
         zip -r "../BruthXotic-AOSP-${{ env.BUILD_TIME }}.zip" *
+        
+    - name: 📣 Telegram BOT
+      if: success()
+      run: |
+        BUILD_END=$(date +%s)
+        DURATION=$((BUILD_END - BUILD_START))
+        MIN=$((DURATION / 60))
+        SEC=$((DURATION % 60))
+        BUILD_DURATION="${MIN}m ${SEC}s"
+        CHANGELOG=$(git log -2 --pretty=format:"• %s%n" | sed '/^$/d')
+        curl -F document=@BruthXotic-AOSP-${{ env.BUILD_TIME }}.zip \
+             -F chat_id=${{ secrets.TG_CHAT_ID }} \
+             -F parse_mode=HTML \
+             -F caption="✅ <b>New Kernel Release</b>
+             ━━━━━━━━━━━━━━━━━━━━
+             📱 Device      : Redmi Note 10 Pro (sweet)
+             🧠 Kernel      : BruthXotic-Limitless
+             🐧 Linux       : 4.14.356
+             🛠 Toolchain   : Neutron Clang 19
+             🔐 Root        : KernelSU-Next
+             🫥 Hide        : SUSFS enabled
+             ⏳ Duration    : ${BUILD_DURATION}
+             
+             <b>📝 Changelog :</b>
+             ${CHANGELOG}
+             ━━━━━━━━━━━━━━━━━━━━" \
+             https://api.telegram.org/bot${{ secrets.TG_BOT_TOKEN }}/sendDocument
         
     - name: 📤 Upload Flashable zip
       uses: actions/upload-artifact@v4
