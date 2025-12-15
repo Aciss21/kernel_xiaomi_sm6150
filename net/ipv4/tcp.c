@@ -476,14 +476,6 @@ static void tcp_tx_timestamp(struct sock *sk, u16 tsflags, struct sk_buff *skb)
 	}
 }
 
-static inline bool tcp_stream_is_readable(const struct tcp_sock *tp,
-					  int target, struct sock *sk)
-{
-	return (tp->rcv_nxt - tp->copied_seq >= target) ||
-		(sk->sk_prot->stream_memory_read ?
-		sk->sk_prot->stream_memory_read(sk) : false);
-}
-
 /*
  *	Wait for a TCP event.
  *
@@ -556,7 +548,7 @@ unsigned int tcp_poll(struct file *file, struct socket *sock, poll_table *wait)
 		    !sock_flag(sk, SOCK_URGINLINE))
 			target++;
 
-		if (tcp_stream_is_readable(tp, target, sk))
+		if (tp->rcv_nxt - tp->copied_seq >= target)
 			mask |= POLLIN | POLLRDNORM;
 
 		if (!(sk->sk_shutdown & SEND_SHUTDOWN)) {
@@ -1013,8 +1005,7 @@ new_segment:
 			get_page(page);
 			skb_fill_page_desc(skb, i, page, offset, copy);
 		}
-		if (!(flags & MSG_NO_SHARED_FRAGS))
-			skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
+		skb_shinfo(skb)->tx_flags |= SKBTX_SHARED_FRAG;
 
 		skb->len += copy;
 		skb->data_len += copy;
