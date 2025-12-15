@@ -435,9 +435,9 @@ int cam_vfe_reset(void *hw_priv, void *reset_core_args, uint32_t arg_size)
 
 void cam_isp_hw_get_timestamp(struct cam_isp_timestamp *time_stamp)
 {
-	struct timespec ts;
+	struct timespec64 ts;
 
-	get_monotonic_boottime(&ts);
+	get_monotonic_boottime64(&ts);
 	time_stamp->mono_time.tv_sec    = ts.tv_sec;
 	time_stamp->mono_time.tv_usec   = ts.tv_nsec/1000;
 }
@@ -451,7 +451,7 @@ static int cam_vfe_irq_top_half(uint32_t    evt_id,
 	struct cam_vfe_top_irq_evt_payload  *evt_payload;
 	struct cam_vfe_hw_core_info         *core_info;
 	struct cam_isp_timestamp            timestamp_before_spinlok;
-	struct timespec ts;
+	struct timespec64 ts;
 
 	get_monotonic_boottime64(&ts);
 	cam_isp_hw_get_timestamp(&timestamp_before_spinlok);

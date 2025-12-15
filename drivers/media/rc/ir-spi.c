@@ -11,7 +11,6 @@
 #include <linux/of_gpio.h>
 #include <linux/regulator/consumer.h>
 #include <linux/spi/spi.h>
-#include "media/lirc_dev.h"
 #include <asm/uaccess.h>
 #include <media/rc-core.h>
 

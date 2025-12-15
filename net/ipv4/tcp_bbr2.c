@@ -599,7 +599,7 @@ static void bbr_cwnd_event(struct sock *sk, enum tcp_ca_event event)
 		u32 state = bbr->ce_state;
 		dctcp_ece_ack_update(sk, event, &bbr->prior_rcv_nxt, &state);
 		bbr->ce_state = state;
-		if (tp->fast_ack_mode == 2 && event == CA_EVENT_ECN_IS_CE)
+		if (event == CA_EVENT_ECN_IS_CE)
 			tcp_enter_quickack_mode(sk, TCP_MAX_QUICKACKS);
 	}
 }
@@ -702,7 +702,7 @@ static u32 bbr_packets_in_net_at_edt(struct sock *sk, u32 inflight_now)
 	u64 now_ns, edt_ns, interval_us;
 	u32 interval_delivered, inflight_at_edt;
 
-	now_ns = tp->tcp_clock_cache;
+	now_ns = tcp_clock_ns();
 	edt_ns = max(tp->tcp_wstamp_ns, now_ns);
 	interval_us = div_u64(edt_ns - now_ns, NSEC_PER_USEC);
 	interval_delivered = (u64)bbr_bw(sk) * interval_us >> BW_SCALE;
@@ -2313,9 +2313,6 @@ static bool bbr_undo = true;
 /* Use fast path if app-limited, no loss/ECN, and target cwnd was reached? */
 static bool bbr_fast_path = true;	/* default: enabled */
 
-/* Use fast ack mode ? */
-static int bbr_fast_ack_mode = 1;	/* default: rwnd check off */
-
 /* How much to additively increase inflight_hi when entering REFILL? */
 static u32 bbr_refill_add_inc;		/* default: disabled */
 
@@ -2342,7 +2339,6 @@ module_param_named(bw_probe_base_us,     bbr_bw_probe_base_us,     uint, 0664);
 module_param_named(bw_probe_rand_us,     bbr_bw_probe_rand_us,     uint, 0664);
 module_param_named(undo,                 bbr_undo,                 bool, 0664);
 module_param_named(fast_path,		 bbr_fast_path,		   bool, 0664);
-module_param_named(fast_ack_mode,	 bbr_fast_ack_mode,	   uint, 0664);
 module_param_named(refill_add_inc,       bbr_refill_add_inc,       uint, 0664);
 
 static void bbr2_init(struct sock *sk)
@@ -2416,8 +2412,6 @@ static void bbr2_init(struct sock *sk)
 	bbr->ecn_alpha = bbr->params.ecn_alpha_init;
 	bbr->alpha_last_delivered = 0;
 	bbr->alpha_last_delivered_ce = 0;
-
-	tp->fast_ack_mode = min_t(u32, 0x2U, bbr_fast_ack_mode);
 
 	if ((tp->ecn_flags & TCP_ECN_OK) && bbr_ecn_enable)
 		tp->ecn_flags |= TCP_ECN_ECT_PERMANENT;

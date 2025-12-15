@@ -85,6 +85,18 @@
 
 #define BUS_VOTE_19_MHZ 153600000
 
+#ifndef trace_rot_entry_commit
+static inline void trace_rot_entry_commit(int a, int b, void *c) {}
+#endif
+
+#ifndef trace_rot_entry_done
+static inline void trace_rot_entry_done(int a, int b, void *c) {}
+#endif
+
+#ifndef ATRACE_INT
+#define ATRACE_INT(name, val) do { } while (0)
+#endif
+
 static struct msm_bus_vectors rot_reg_bus_vectors[] = {
 	SDE_REG_BUS_VECTOR_ENTRY(0, 0),
 	SDE_REG_BUS_VECTOR_ENTRY(0, BUS_VOTE_19_MHZ),

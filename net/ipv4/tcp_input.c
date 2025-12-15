@@ -5280,19 +5280,16 @@ static void __tcp_ack_snd_check(struct sock *sk, int ofo_possible)
 	struct tcp_sock *tp = tcp_sk(sk);
 
 	    /* More than one full frame received... */
-	if (((tp->rcv_nxt - tp->rcv_wup) > (inet_csk(sk)->icsk_ack.rcv_mss) *
-	    sysctl_tcp_delack_seg &&
-	    (tp->fast_ack_mode == 1 ||
-	     /* ... and right edge of window advances far enough.
-	      * (tcp_recvmsg() will send ACK otherwise). Or...
-	      */
-	       __tcp_select_window(sk) >= tp->rcv_wnd)) ||
+	if (((tp->rcv_nxt - tp->rcv_wup) >
+	      inet_csk(sk)->icsk_ack.rcv_mss * sysctl_tcp_delack_seg &&
+	      __tcp_select_window(sk) >= tp->rcv_wnd) ||
 	    /* We ACK each frame or... */
 	    tcp_in_quickack_mode(sk) ||
 	    /* We have out of order data or... */
 	    (ofo_possible && !RB_EMPTY_ROOT(&tp->out_of_order_queue)) ||
 	    /* Protocol state mandates a one-time immediate ACK */
 	    inet_csk(sk)->icsk_ack.pending & ICSK_ACK_NOW) {
+
 		/* Then ack it now */
 		tcp_send_ack(sk);
 	} else {
@@ -5922,9 +5919,6 @@ static int tcp_rcv_synsent_state_process(struct sock *sk, struct sk_buff *skb,
 		} else {
 			tp->tcp_header_len = sizeof(struct tcphdr);
 		}
-
-		if (tcp_is_sack(tp) && sysctl_tcp_fack)
-			tcp_enable_fack(tp);
 
 		tcp_sync_mss(sk, icsk->icsk_pmtu_cookie);
 		tcp_initialize_rcv_mss(sk);

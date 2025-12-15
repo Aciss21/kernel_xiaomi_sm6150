@@ -1789,10 +1789,6 @@ int sde_rotator_inline_commit(void *handle, struct sde_rotator_inline_cmd *cmd,
 		rot_trace.dst_w = req->entries[0].item.dst_rect.w;
 		rot_trace.dst_h = req->entries[0].item.dst_rect.h;
 
-
-		trace_rot_entry_fence(
-			ctx->session_id, cmd->sequence_id, &rot_trace);
-
 		ret = sde_rotator_handle_request_common(
 				rot_dev->mgr, ctx->private, req);
 		if (ret) {
@@ -3073,9 +3069,6 @@ static int sde_rotator_process_buffers(struct sde_rotator_ctx *ctx,
 	rot_trace.dst_y = ctx->crop_cap.top;
 	rot_trace.dst_w = ctx->crop_cap.width;
 	rot_trace.dst_h = ctx->crop_cap.height;
-
-	trace_rot_entry_fence(
-		ctx->session_id, vbinfo_cap->fence_ts, &rot_trace);
 
 	if (vbinfo_out->fence) {
 		sde_rot_mgr_unlock(rot_dev->mgr);
