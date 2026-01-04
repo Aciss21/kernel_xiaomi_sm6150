@@ -1,5 +1,0 @@
-config MORAT_EXOTIC_APPBOOST
-	bool "Exotic App Boost"
-	default y
-	help
-	  Automatically prioritize important apps to improve launch time.

@@ -1,1 +1,0 @@
-obj-$(CONFIG_MORAT_EXOTIC_APPBOOST) += exoticappboost.o

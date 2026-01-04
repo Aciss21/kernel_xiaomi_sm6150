@@ -1,2 +1,1 @@
 source "drivers/morat/exoticaffinity/Kconfig"
-source "drivers/morat/exoticappboost/Kconfig"
