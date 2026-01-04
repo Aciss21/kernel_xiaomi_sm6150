@@ -1,3 +1,0 @@
-config EXOTIC_AFFINITY
-    tristate "ExoticAffinity: Pin critical threads to LITTLE cores"
-    default y
