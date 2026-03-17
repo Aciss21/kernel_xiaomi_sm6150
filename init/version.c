@@ -48,11 +48,11 @@ custom banner by Exotic GANK */
 
 const char linux_banner[] =
     "Linux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")\n"
-    "Compiled with Morat Engine LLD 19.0.0\n"
+    "(Android (MoratX-002, +pgo, +bolt, +lto, +mlgo, based on llvm-project) Clang 19.0.0 (Neutron), LLD 19.0.0)\n"
     "Crafted in " BUILD_DATE "\n";
 
 const char linux_proc_banner[] =
     "%s version %s"
     " (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ") "
-    "Compiled with Morat Engine LLD 19.0.0 "
+    "(Android (MoratX-002, +pgo, +bolt, +lto, +mlgo, based on llvm-project) Clang 19.0.0 (Neutron), LLD 19.0.0) "
     "Crafted in " BUILD_DATE "\n";
