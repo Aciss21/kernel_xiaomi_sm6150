@@ -27,7 +27,7 @@
 #include <linux/debugfs.h>
 #include <linux/of_irq.h>
 #ifdef CONFIG_DRM
-#include <linux/msm_drm_notify.h>
+#include <drm/drm_notifier.h>
 #include <linux/notifier.h>
 #include <linux/fb.h>
 #endif
@@ -1032,10 +1032,9 @@ static void goodix_ts_proc_exit(struct goodix_ts_core *core_data)
 	proc_remove(core_data->tp_data_dump_proc);
 }
 static void goodix_ts_wq_exit(struct goodix_ts_core *core_data)
-{   
-    destroy_workqueue(core_data->power_supply_wq);
+{
+	destroy_workqueue(core_data->power_supply_wq);
 	destroy_workqueue(core_data->event_wq);
-	
 	destroy_workqueue(core_data->touch_gesture_wq);
 #ifdef CONFIG_TOUCHSCREEN_XIAOMI_TOUCHFEATURE
 	destroy_workqueue(core_data->touch_feature_wq);
@@ -1067,7 +1066,7 @@ int goodix_ts_unregister_notifier(struct notifier_block *nb)
 EXPORT_SYMBOL(goodix_ts_unregister_notifier);
 
 /**
- * msm_drm_notifier_call_chain - notify clients of msm_drm_notifier
+ * fb_notifier_call_chain - notify clients of fb_events
  *	see enum ts_notify_event in goodix_ts_core.h
  */
 int goodix_ts_blocking_notify(enum ts_notify_event evt, void *v)
@@ -1530,7 +1529,7 @@ static int goodix_ts_gpio_setup(struct goodix_ts_core *core_data)
 {
 	struct goodix_ts_board_data *ts_bdata = board_data(core_data);
 	int r = 0;
-	
+
 	/*
 	 * after kenerl3.13, gpio_ api is deprecated, new
 	 * driver should use gpiod_ api.
@@ -2127,14 +2126,14 @@ static void goodix_power_supply_work(struct work_struct *work)
 	struct goodix_ts_device *ts_dev = core_data->ts_dev;
 	union power_supply_propval cur_chgr = {0,};
 	static u8 is_usb_exit = 0;
-    
-    if (!core_data)
+
+	if (!core_data)
 		return;
 
 	if (atomic_read(&core_data->suspended) == 1 && !core_data->gesture_enabled) {
 		return;
 	}
-	
+
 	if (!core_data->battery_psy) {
 		ts_err("battery psy is NULL, something error!!");
 		return;
@@ -2143,7 +2142,7 @@ static void goodix_power_supply_work(struct work_struct *work)
 	ret = power_supply_get_property(core_data->battery_psy, POWER_SUPPLY_PROP_STATUS, &cur_chgr);
 	if (ret < 0) {
 		ts_err("get psy property failed!!, skip charger mode handler");
-		goto out;;
+		goto out;
 	}
 
 	switch (cur_chgr.intval) {
@@ -2165,7 +2164,7 @@ static void goodix_power_supply_work(struct work_struct *work)
 		ts_err("unsupport charger state %d", cur_chgr.intval);
 		break;
 	}
-	out:
+out:
 	pm_relax(ts_dev->dev);
 }
 
@@ -2180,28 +2179,28 @@ static int goodix_power_supply_event(struct notifier_block *nb, unsigned long ev
 }
 
 /**
- * goodix_ts_msm_drm_notifier_callback - msm drm notifier callback
- * Called by kernel during drm blanck/unblank phrase
+ * goodix_ts_fb_notifier_callback - Framebuffer notifier callback
+ * Called by kernel during framebuffer blanck/unblank phrase
  */
-int goodix_ts_msm_drm_notifier_callback(struct notifier_block *self,
+int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 	unsigned long event, void *data)
 {
 	struct goodix_ts_core *core_data =
-		container_of(self, struct goodix_ts_core, msm_drm_notifier);
-	struct msm_drm_notifier *msm_drm_event = data;
+		container_of(self, struct goodix_ts_core, fb_notifier);
+	struct drm_notify_data *fb_event = data;
 	int blank;
 
-	if (msm_drm_event && msm_drm_event->data && core_data) {
-		blank = *(int *)(msm_drm_event->data);
+	if (fb_event && fb_event->data && core_data) {
+		blank = *(int *)(fb_event->data);
 		flush_workqueue(core_data->event_wq);
-		if (event == MSM_DRM_EVENT_BLANK && blank == MSM_DRM_BLANK_UNBLANK) {
+		if (event == DRM_EVENT_BLANK && blank == DRM_BLANK_UNBLANK) {
 			ts_notice("notifier tp event:%d, code:%d.", event, blank);
 			ts_info("touchpanel resume");
 			queue_work(core_data->event_wq, &core_data->resume_work);
-		} else if (event == MSM_DRM_EARLY_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
-			blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
+		} else if (event == DRM_EARLY_EVENT_BLANK && (blank == DRM_BLANK_POWERDOWN ||
+			blank == DRM_BLANK_LP1 || blank == DRM_BLANK_LP2)) {
 			ts_notice("notifier tp event:%d, code:%d.", event, blank);
-			ts_info("touchpanel suspend by %s", blank == MSM_DRM_BLANK_POWERDOWN ? "blank" : "doze");
+			ts_info("touchpanel suspend by %s", blank == DRM_BLANK_POWERDOWN ? "blank" : "doze");
 			queue_work(core_data->event_wq, &core_data->suspend_work);
 		}
 	}
@@ -2341,11 +2340,11 @@ int goodix_ts_stage2_init(struct goodix_ts_core *core_data)
 	ts_info("success register irq");
 
 #ifdef CONFIG_DRM
-	core_data->msm_drm_notifier.notifier_call = goodix_ts_msm_drm_notifier_callback;
-	if (msm_drm_register_client(&core_data->msm_drm_notifier)) {
-		ts_err("Failed to register drm notifier client:%d", r);
+	core_data->fb_notifier.notifier_call = goodix_ts_fb_notifier_callback;
+	if (drm_register_client(&core_data->fb_notifier)) {
+		ts_err("Failed to register fb notifier client:%d", r);
 	} else {
-		ts_info("success register drm notifier client");
+		ts_info("success register fb notifier client");
 	}
 #elif defined(CONFIG_HAS_EARLYSUSPEND)
 	core_data->early_suspend.level = EARLY_SUSPEND_LEVEL_BLANK_SCREEN + 1;
@@ -2649,7 +2648,7 @@ static ssize_t goodix_data_dump_read(struct file *file, char __user *buf,
 	ret = goodix_tools_register();
 	if (ret) {
 		ts_err("tp_rawdata prepare goodix_tools_register failed");
-		cnt = snprintf(v_buf, sizeof(v_buf), "-EIO\t\n");
+		cnt = snprintf(v_buf, 6, "-EIO\t\n");
 		goto out;
 	}
 	ts_info("start get rawdata!");
@@ -3158,8 +3157,8 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	r = goodix_ts_power_init(core_data);
 	if (r < 0)
 		goto out;
-    
-    /* get GPIO resource */
+
+	/* get GPIO resource */
 	r = goodix_ts_gpio_setup(core_data);
 	if (r < 0)
 		goto out;
@@ -3193,15 +3192,15 @@ static int goodix_ts_probe(struct platform_device *pdev)
 		ts_info("Failed start cfg_bin_proc");
 		goto out;
 	}
-    
-    core_data->power_supply_wq = alloc_workqueue("gtp-power-supply-queue",
+
+	core_data->power_supply_wq = alloc_workqueue("gtp-power-supply-queue",
 				WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
 	if (!core_data->power_supply_wq) {
 		ts_err("goodix cannot create power supply work thread");
 		r = -ENOMEM;
 		goto out;
 	}
-	
+
 	core_data->event_wq = alloc_workqueue("gtp-event-queue",
 				WQ_UNBOUND | WQ_HIGHPRI | WQ_CPU_INTENSIVE, 1);
 	if (!core_data->event_wq) {
@@ -3232,6 +3231,7 @@ static int goodix_ts_probe(struct platform_device *pdev)
 	 * pm_qos_add_request(&core_data->tp_qos_request, PM_QOS_CPU_DMA_LATENCY, PM_QOS_DEFAULT_VALUE);
 	*/
 	/* is usb exit init */
+
 	core_data->battery_psy = power_supply_get_by_name("battery");
 	if (!core_data->battery_psy) {
 		mdelay(50);
@@ -3330,8 +3330,8 @@ out:
 			gpio_direction_output(ts_device->board_data.irq_gpio, 0);
 		}
 		goodix_ts_power_off(core_data);
-		if (core_data->msm_drm_notifier.notifier_call)
-			msm_drm_unregister_client(&core_data->msm_drm_notifier);
+		if (core_data->fb_notifier.notifier_call)
+			drm_unregister_client(&core_data->fb_notifier);
 		atomic_set(&core_data->initialized, 0);
 		goodix_modules.core_data = core_data;
 	} else {
@@ -3354,7 +3354,7 @@ static int goodix_ts_remove(struct platform_device *pdev)
 	if (atomic_read(&core_data->ts_esd.esd_on))
 		goodix_ts_esd_off(core_data);
 #ifdef CONFIG_DRM
-	msm_drm_unregister_client(&core_data->msm_drm_notifier);
+	drm_unregister_client(&core_data->fb_notifier);
 #endif
 	debugfs_remove_recursive(core_data->debugfs);
 	goodix_remove_all_ext_modules();
