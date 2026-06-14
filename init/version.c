@@ -27,7 +27,7 @@ struct uts_namespace init_uts_ns = {
 	.name = {
 		.sysname	= UTS_SYSNAME,
 		.nodename	= UTS_NODENAME,
-		.release	= UTS_RELEASE,
+		.release	= "54.299-Deandless-Road",
 		.version	= UTS_VERSION,
 		.machine	= UTS_MACHINE,
 		.domainname	= UTS_DOMAINNAME,
@@ -47,12 +47,12 @@ custom banner by Exotic GANK */
 #endif
 
 const char linux_banner[] =
-    "Linux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")\n"
-    "(Android (MoratX-002, +pgo, +bolt, +lto, +mlgo, based on llvm-project) Clang 19.0.0 (Neutron), LLD 19.0.0)\n"
+    "Linux version 5.4.299-Deandless-Road (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")\n"
+    "(Android (EstehX-002, +pgo, +bolt, +lto, +mlgo, based on llvm-project) Clang 19.0.0 (Neutron), LLD 19.0.0)\n"
     "Crafted in " BUILD_DATE "\n";
 
 const char linux_proc_banner[] =
     "%s version %s"
     " (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ") "
-    "(Android (MoratX-002, +pgo, +bolt, +lto, +mlgo, based on llvm-project) Clang 19.0.0 (Neutron), LLD 19.0.0) "
+    "(Android (EstehX-002, +pgo, +bolt, +lto, +mlgo, based on llvm-project) Clang 19.0.0 (Neutron), LLD 19.0.0) "
     "Crafted in " BUILD_DATE "\n";

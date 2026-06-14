@@ -88,12 +88,6 @@ static  struct vreg_config vreg_conf[] = {
 	/*{ "vdd_io", 1800000UL, 1800000UL, 6000, },*/
 };
 
-#ifdef CONFIG_MACH_XIAOMI_SWEET
-static int power_cfg = 1;
-#else
-static int power_cfg = 0;
-#endif
-
 struct fpc1020_data {
 	struct device *dev;
 
@@ -122,8 +116,6 @@ struct fpc1020_data {
 	bool fb_black;
 	bool wait_finger_down;
 	struct work_struct work;
-#endif
-
 	struct input_handler input_handler;
 };
 
