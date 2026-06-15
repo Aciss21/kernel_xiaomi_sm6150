@@ -1,18 +1,37 @@
-# Tobrut Exotic Kernel
+<div align="center">
 
-🔥 **Tobrut Exotic** is an experimental and optimized kernel based on **Vantom**, specifically designed for **Redmi Note 10 Pro/Pro Max (sweet & sweetin)**. This kernel prioritizes **power efficiency, gaming performance, and system stability** without compromising essential features.
+# Deandless-Road
+### for Xiaomi Mi 11 Lite 4G (courbet)
 
----
-
-### ⚙️ Main Goals:
-
-- Deliver high performance when needed  
-- Minimize idle & background power consumption  
-- Maintain safe temperature and current limits  
+</div>
 
 ---
 
-### 📦 Device Support:
+## ✨ Features
 
-- **sweetin** – Redmi Note 10 Pro Max (India)  
-- **sweet** – Redmi Note 10 Pro (Global)
+### 🔐 Root & Security
+- **KernelSU** — Kernel-based root solution
+- **SUSFS v2.1.0** — Filesystem-level SU hiding
+
+### ⚡ Performance
+- Optimized CPU & GPU governors
+- Improved scheduler for smoother UI
+- Reduced input latency for better touch response
+- Memory management tweaks (ZRAM optimization)
+
+### 🔋 Battery
+- Intelligent power management
+- Optimized wakelocks
+- Idle drain improvements
+  
+---
+
+## 🙏 Credits
+
+
+---
+
+<div align="center">
+
+
+</div>
