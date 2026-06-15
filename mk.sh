@@ -4,6 +4,20 @@
 #   By: esteh @ TUF-FA5093
 # ================================================================
 
+# ── Toolchain Setup ──────────────────────────────────────────────
+mkdir -p clang && cd clang
+curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
+chmod a+x antman && ./antman -S && ./antman --patch=glibc
+cd ..
+
+git clone https://github.com/greenforce-project/gcc-arm64 -b main --depth=1 gcc64
+git clone https://github.com/greenforce-project/gcc-arm -b main --depth=1 gcc32
+
+# ── Toolchain Paths ──────────────────────────────────────────────
+CLANG_PATH="$(pwd)/clang/bin"
+GCC64_PATH="$(pwd)/gcc64"
+GCC32_PATH="$(pwd)/gcc32"
+
 # ── Telegram Config ──────────────────────────────────────────────
 TG_TOKEN="8647652050:AAG0ZKtMuE4NhlOKx8EHz4VHfgPLlguMTqw"
 TG_CHAT_ID="7540957411"
@@ -13,7 +27,6 @@ DEVICE="courbet"
 KNAME="Deandless-Road"
 VAR="KSU"
 ZIPNAME="${KNAME}-${VAR}.zip"
-CLANG_DIR="/mnt/d/pt/kernel/linux-x86/clang+llvm-14.0.0-x86_64-linux-gnu-ubuntu-18.04/bin"
 ANYKERNEL_REPO="https://github.com/ZGSYet/AnyKernel3"
 ANYKERNEL_BRANCH="master"
 
@@ -27,9 +40,11 @@ DTB="$OUT/arch/arm64/boot/dtb.img"
 export ARCH=arm64
 export KBUILD_BUILD_USER=PryL
 export KBUILD_BUILD_HOST=TUF-FA5093
-export PATH="$CLANG_DIR:$PATH"
+export PATH="$CLANG_PATH:$PATH"
 
 SECONDS=0
+DATE=$(date +"%d %B %Y")
+TIME_START=$(date +"%H:%M:%S")
 
 # ── Telegram Functions ───────────────────────────────────────────
 tg_send_sticky() {
@@ -60,11 +75,18 @@ tg_send_file() {
 tg_send_log() {
     curl -s -F document=@"$1" \
          -F chat_id="$TG_CHAT_ID" \
-         -F caption="⚠️ *Build Log*" \
+         -F caption="$2" \
          -F parse_mode="Markdown" \
          "https://api.telegram.org/bot${TG_TOKEN}/sendDocument" > /dev/null
 }
 
+tg_send_photo() {
+    curl -s -X POST "https://api.telegram.org/bot${TG_TOKEN}/sendPhoto" \
+        -d chat_id="$TG_CHAT_ID" \
+        -d photo="$1" \
+        -d caption="$2" \
+        -d parse_mode="Markdown" > /dev/null
+}
 # ── Header ───────────────────────────────────────────────────────
 echo "================================================"
 echo "   KUDA ASELI NAIL KUDA BESI - Kernel Builder  "
@@ -74,79 +96,149 @@ echo " Builder : $KBUILD_BUILD_USER@$KBUILD_BUILD_HOST"
 echo " Output  : $ZIPNAME"
 echo "================================================"
 
-tg_send_sticky "🔨 *Kernel Build Started*
-━━━━━━━━━━━━━━━━━━━━
-📱 *Device* : \`$DEVICE\`
-🏷️ *Kernel* : \`$KNAME\`
-👤 *Builder*: \`$KBUILD_BUILD_USER\`
-🖥️ *Host*  : \`$KBUILD_BUILD_HOST\`
-━━━━━━━━━━━━━━━━━━━━
-⏳ *Status* : Persiapan..."
+tg_send_sticky "
+╔══════════════════════════╗
+       🚀 *KERNEL BUILD STARTED* 🚀
+╚══════════════════════════╝
+
+📱 *Device*    : \`$DEVICE\`
+🏷️ *Kernel*    : \`$KNAME\`
+🔧 *Variant*   : \`$VAR\`
+👤 *Builder*   : \`$KBUILD_BUILD_USER\`
+🖥️ *Host*      : \`$KBUILD_BUILD_HOST\`
+📅 *Date*      : \`$DATE\`
+🕐 *Started*   : \`$TIME_START\`
+
+⏳ *Status*    : Warming up engines..."
 
 # ── Step 1: Clean ────────────────────────────────────────────────
 if [[ $1 == "-c" || $1 == "--clean" ]]; then
     echo "[1/4] Cleaning output..."
-    tg_update "🔨 *Kernel Build Update*
-━━━━━━━━━━━━━━━━━━━━
-⏳ *Status* : 🧹 Bersih-bersih folder \`out\`..."
+    tg_update "
+╔══════════════════════════╗
+       🚀 *KERNEL BUILD* 🚀
+╚══════════════════════════╝
+
+📱 *Device*  : \`$DEVICE\`
+🏷️ *Kernel*  : \`$KNAME\`
+📅 *Date*    : \`$DATE\`
+
+🧹 *Step 1/4* — Cleaning...
+\`\`\`
+Nuking out/ folder...
+\`\`\`
+⏳ sabar su mung $(proc --all)..."
     rm -rf "$OUT"
 fi
 
+echo "Setup clang"
+
 # ── Step 2: Defconfig ────────────────────────────────────────────
 echo "[2/4] Loading defconfig..."
-tg_update "🔨 *Kernel Build Update*
-━━━━━━━━━━━━━━━━━━━━
-⏳ *Status* : ⚙️ Loading \`${DEVICE}_defconfig\`..."
+tg_update "
+╔══════════════════════════╗
+       🚀 *KERNEL BUILD* 🚀
+╚══════════════════════════╝
+
+📱 *Device*  : \`$DEVICE\`
+🏷️ *Kernel*  : \`$KNAME\`
+📅 *Date*    : \`$DATE\`
+
+⚙️ *Step 2/4* — Loading Defconfig...
+\`\`\`
+Applying ${DEVICE}_defconfig
+\`\`\`
+⏳ delok konfigurasi kernel..."
 
 make O="$OUT" ARCH=arm64 "${DEVICE}_defconfig"
 
 # ── Step 3: Compile ──────────────────────────────────────────────
 echo "[3/4] Compiling kernel..."
-tg_update "🔨 *Kernel Build Update*
-━━━━━━━━━━━━━━━━━━━━
-⏳ *Status* : ⚡ Nggebut compile kernel...
-🧵 *Threads* : \`$(nproc --all)\`"
+tg_update "
+╔══════════════════════════╗
+       🚀 *KERNEL BUILD* 🚀
+╚══════════════════════════╝
+
+📱 *Device*  : \`$DEVICE\`
+🏷️ *Kernel*  : \`$KNAME\`
+📅 *Date*    : \`$DATE\`
+
+⚡ *Step 3/4* — Compiling...
+\`\`\`
+Threads  : $(nproc --all) cores
+Compiler : Clang + GCC
+LTO      : Enabled
+\`\`\`
+🔥 Gas poll compilenya, tenang ae cok"
 
 make -j$(nproc --all) \
     O="$OUT" \
     ARCH=arm64 \
     LLVM=1 \
     LLVM_IAS=1 \
-    CROSS_COMPILE=aarch64-linux-gnu- \
-    CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+    CC=clang \
+    CLANG_TRIPLE="$CLANG_PATH/aarch64-linux-gnu-" \
+    CROSS_COMPILE="$GCC64_PATH/bin/aarch64-elf-" \
+    CROSS_COMPILE_ARM32="$GCC32_PATH/bin/arm-eabi-" \
     2>&1 | tee build.log
 
 # ── Cek Hasil Compile ────────────────────────────────────────────
 if [ ! -f "$KERNEL" ]; then
     echo "❌ Build GAGAL! Cek build.log"
-    tg_update "❌ *Build Gagal!*
+    tg_update "
+╔══════════════════════════╗
+      💀 *BUILD GAGAL!* 💀
+╚══════════════════════════╝
+
+📱 *Device*  : \`$DEVICE\`
+🏷️ *Kernel*  : \`$KNAME\`
+📅 *Date*    : \`$DATE\`
+
+❌ *Error*   : Image\.gz not found!
+⏱️ *Waktu*   : \`$((SECONDS / 60)) menit $((SECONDS % 60)) detik\`
+
+😭 Compile gagal bestie, cek lognya yuk..."
+    tg_send_log "build.log" "
+💀 *BUILD LOG — GAGAL*
 ━━━━━━━━━━━━━━━━━━━━
-💀 *Status* : Image.gz tidak ditemukan
-📋 Log dikirim di bawah..."
-    tg_send_log "build.log"
+📱 *Device* : \`$DEVICE\`
+🏷️ *Kernel* : \`$KNAME\`
+⏱️ *Durasi* : \`$((SECONDS / 60)) menit $((SECONDS % 60)) detik\`
+━━━━━━━━━━━━━━━━━━━━
+Semangat, pasti bisa fix! 💪"
     exit 1
 fi
 
 # ── Step 4: Packaging ────────────────────────────────────────────
 echo "[4/4] Packaging AnyKernel3..."
-tg_update "🔨 *Kernel Build Update*
-━━━━━━━━━━━━━━━━━━━━
-⏳ *Status* : 📦 Packing AnyKernel3..."
+tg_update "
+╔══════════════════════════╗
+       🚀 *KERNEL BUILD* 🚀
+╚══════════════════════════╝
+
+📱 *Device*  : \`$DEVICE\`
+🏷️ *Kernel*  : \`$KNAME\`
+📅 *Date*    : \`$DATE\`
+
+📦 *Step 4/4* — Packaging...
+\`\`\`
+Cloning AnyKernel3...
+Copying Image.gz + DTB...
+Zipping flashable package...
+\`\`\`
+🎁 Hampir selesai, sabar dikit lagi!"
 
 [ -d "AnyKernel3" ] && rm -rf AnyKernel3
 git clone -q "$ANYKERNEL_REPO" -b "$ANYKERNEL_BRANCH" AnyKernel3
 
-# Patch anykernel.sh
 sed -i "s/device\.name1=.*/device.name1=${DEVICE}/"       AnyKernel3/anykernel.sh
 sed -i "s/device\.name2=.*/device.name2=${DEVICE}in/"     AnyKernel3/anykernel.sh
 sed -i "s/kernel\.string=.*/kernel.string=${KNAME}/"      AnyKernel3/anykernel.sh
 
-# Copy files
 cp "$KERNEL" AnyKernel3/
 [ -f "$DTBO" ] && cp "$DTBO" AnyKernel3/
 [ -f "$DTB"  ] && cp "$DTB"  AnyKernel3/
 
-# Zip
 cd AnyKernel3
 zip -r9 "../$ZIPNAME" * -x "*.git*" -x "*.github*"
 cd ..
@@ -154,26 +246,50 @@ rm -rf AnyKernel3
 
 # ── Step 5: Upload ───────────────────────────────────────────────
 DURATION="$((SECONDS / 60)) menit $((SECONDS % 60)) detik"
-echo "✅ Build selesai dalam $DURATION"
+TIME_END=$(date +"%H:%M:%S")
+echo "✅ dadi $DURATION"
 
-tg_update "🔨 *Kernel Build Update*
-━━━━━━━━━━━━━━━━━━━━
-✅ *Status* : Done! Lagi upload..."
+tg_update "
+╔══════════════════════════╗
+       🚀 *KERNEL BUILD* 🚀
+╚══════════════════════════╝
 
-tg_send_file "$ZIPNAME" "✅ *Build Sukses Alhamdulillah!*
-━━━━━━━━━━━━━━━━━━━━
 📱 *Device*  : \`$DEVICE\`
 🏷️ *Kernel*  : \`$KNAME\`
+
+✅ *Sukses!* Lagi upload zip...
+📤 Mohon tunggu sebentar..."
+
+tg_send_file "$ZIPNAME" "
+╔══════════════════════════╗
+    ✅ *KARI MBADOK* ✅
+╚══════════════════════════╝
+
+📱 *Device*   : \`$DEVICE\`
+🏷️ *Kernel*   : \`$KNAME\`
+🔧 *Variant*  : \`$VAR\`
+📦 *File*     : \`$ZIPNAME\`
+
+🕐 *Start*    : \`$TIME_START\`
+🕑 *Finish*   : \`$TIME_END\`
+⏱️ *Durasi*   : \`$DURATION\`
+
+👤 *Builder*  : \`$KBUILD_BUILD_USER\`
+🖥️ *Host*     : \`$KBUILD_BUILD_HOST\`
+📅 *Date*     : \`$DATE\`
+
+_Alhamdulillah, action di perbudak_ 🙏"
+
+tg_update "
+tg_send_photo "
+╔══════════════════════════╗
+    ✅ *BUILD SELESAI!* ✅
+╚══════════════════════════╝
+
 📦 *File*    : \`$ZIPNAME\`
 ⏱️ *Durasi*  : \`$DURATION\`
-👤 *Builder* : \`$KBUILD_BUILD_USER\`"
-
-tg_update "✅ *Build Selesai!*
-━━━━━━━━━━━━━━━━━━━━
-📦 *File*   : \`$ZIPNAME\`
-⏱️ *Durasi* : \`$DURATION\`"
+📅 *Date*    : \`$DATE\`
 
 echo "================================================"
 echo " Selesai dalam $DURATION"
 echo "================================================"
-
