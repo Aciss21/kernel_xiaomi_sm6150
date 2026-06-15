@@ -11,7 +11,8 @@ TG_CHAT_ID="7540957411"
 # ── Build Config ─────────────────────────────────────────────────
 DEVICE="courbet"
 KNAME="Esteh-Kernel"
-ZIPNAME="${KNAME}-${DEVICE}-$(date '+%Y%m%d-%H%M').zip"
+VAR="KSU"
+ZIPNAME="${KNAME}-${VAR}.zip"
 CLANG_DIR="/mnt/d/pt/kernel/linux-x86/clang+llvm-14.0.0-x86_64-linux-gnu-ubuntu-18.04/bin"
 ANYKERNEL_REPO="https://github.com/ZGSYet/AnyKernel3"
 ANYKERNEL_BRANCH="master"
@@ -24,7 +25,7 @@ DTB="$OUT/arch/arm64/boot/dtb.img"
 
 # ── Exports ──────────────────────────────────────────────────────
 export ARCH=arm64
-export KBUILD_BUILD_USER=esteh
+export KBUILD_BUILD_USER=PryL
 export KBUILD_BUILD_HOST=TUF-FA5093
 export PATH="$CLANG_DIR:$PATH"
 
