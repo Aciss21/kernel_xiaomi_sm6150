@@ -10,7 +10,7 @@ TG_CHAT_ID="7540957411"
 
 # ── Build Config ─────────────────────────────────────────────────
 DEVICE="courbet"
-KNAME="Esteh-Kernel"
+KNAME="Deandless-Road"
 VAR="KSU"
 ZIPNAME="${KNAME}-${VAR}.zip"
 CLANG_DIR="/mnt/d/pt/kernel/linux-x86/clang+llvm-14.0.0-x86_64-linux-gnu-ubuntu-18.04/bin"
