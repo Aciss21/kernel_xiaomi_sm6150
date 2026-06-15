@@ -21,8 +21,9 @@ jobs:
       - name: 📦 Install Dependencies
         run: |
           sudo apt update -y
-          sudo apt install bc cpio flex bison aptitude git python-is-python3 tar aria2 perl wget curl lz4 libssl-dev lld -y
-
+          sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev dwarves bc rsync cpio python3 python3-pip git curl wget make lz4 zip unzip ccache
+          sudo apt install -y fakeroot device-tree-compiler libdw-dev pkg-config lld
+          
       - name: 📥 Clone Kernel Source
         run: |
           git clone --depth=1 -b ${{ github.event.inputs.branch }} https://github.com/Kenz-kecap/Deandless-Road.git kernel
