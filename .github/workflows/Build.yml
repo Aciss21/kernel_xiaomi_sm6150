@@ -1,0 +1,33 @@
+name: 🔨 Build Kernel
+
+on:
+  workflow_dispatch:
+    inputs:
+      branch:
+        description: "Branch"
+        required: true
+        default: "A16"
+        type: choice
+        options:
+          - A16
+          
+          
+jobs:
+  build:
+    name: Build Kernel
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📦 Install Dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install bc cpio flex bison aptitude git python-is-python3 tar aria2 perl wget curl lz4 libssl-dev lld -y
+
+      - name: 📥 Clone Kernel Source
+        run: |
+          git clone --depth=1 -b ${{ github.event.inputs.branch }} https://github.com/Kenz-kecap/Deandless-Road.git kernel
+
+      - name: 🔨 Build
+        working-directory: kernel
+        run: bash mk.sh
+        
