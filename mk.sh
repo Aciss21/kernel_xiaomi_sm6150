@@ -4,20 +4,6 @@
 #   By: esteh @ TUF-FA5093
 # ================================================================
 
-# ── Toolchain Setup ──────────────────────────────────────────────
-mkdir -p clang && cd clang
-curl -LO "https://raw.githubusercontent.com/Neutron-Toolchains/antman/main/antman"
-chmod a+x antman && ./antman -S && ./antman --patch=glibc
-cd ..
-
-git clone https://github.com/greenforce-project/gcc-arm64 -b main --depth=1 gcc64
-git clone https://github.com/greenforce-project/gcc-arm -b main --depth=1 gcc32
-
-# ── Toolchain Paths ──────────────────────────────────────────────
-CLANG_PATH="$(pwd)/clang/bin"
-GCC64_PATH="$(pwd)/gcc64"
-GCC32_PATH="$(pwd)/gcc32"
-
 # ── Telegram Config ──────────────────────────────────────────────
 TG_TOKEN="8647652050:AAG0ZKtMuE4NhlOKx8EHz4VHfgPLlguMTqw"
 TG_CHAT_ID="7540957411"
@@ -27,6 +13,7 @@ DEVICE="courbet"
 KNAME="Deandless-Road"
 VAR="KSU"
 ZIPNAME="${KNAME}-${VAR}.zip"
+CLANG_DIR="/mnt/d/pt/kernel/linux-x86/clang+llvm-14.0.0-x86_64-linux-gnu-ubuntu-18.04/bin"
 ANYKERNEL_REPO="https://github.com/ZGSYet/AnyKernel3"
 ANYKERNEL_BRANCH="master"
 
@@ -40,7 +27,7 @@ DTB="$OUT/arch/arm64/boot/dtb.img"
 export ARCH=arm64
 export KBUILD_BUILD_USER=PryL
 export KBUILD_BUILD_HOST=TUF-FA5093
-export PATH="$CLANG_PATH:$PATH"
+export PATH="$CLANG_DIR:$PATH"
 
 SECONDS=0
 DATE=$(date +"%d %B %Y")
@@ -167,7 +154,6 @@ tg_update "
 \`\`\`
 Threads  : $(nproc --all) cores
 Compiler : Clang + GCC
-LTO      : Enabled
 \`\`\`
 🔥 Gas poll compilenya, tenang ae cok"
 
@@ -176,10 +162,8 @@ make -j$(nproc --all) \
     ARCH=arm64 \
     LLVM=1 \
     LLVM_IAS=1 \
-    CC=clang \
-    CLANG_TRIPLE="$CLANG_PATH/aarch64-linux-gnu-" \
-    CROSS_COMPILE="$GCC64_PATH/bin/aarch64-elf-" \
-    CROSS_COMPILE_ARM32="$GCC32_PATH/bin/arm-eabi-" \
+    CROSS_COMPILE=aarch64-linux-gnu- \
+    CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
     2>&1 | tee build.log
 
 # ── Cek Hasil Compile ────────────────────────────────────────────
@@ -187,7 +171,7 @@ if [ ! -f "$KERNEL" ]; then
     echo "❌ Build GAGAL! Cek build.log"
     tg_update "
 ╔══════════════════════════╗
-      💀 *BUILD GAGAL!* 💀
+             *BUILD GAGAL!* 
 ╚══════════════════════════╝
 
 📱 *Device*  : \`$DEVICE\`
