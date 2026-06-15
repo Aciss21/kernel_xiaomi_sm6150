@@ -22,7 +22,7 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev dwarves bc rsync cpio python3 python3-pip git curl wget make lz4 zip unzip ccache
-          sudo apt install -y fakeroot device-tree-compiler libdw-dev pkg-config lld
+          sudo apt install -y fakeroot device-tree-compiler libdw-dev pkg-config lld llvm
           
       - name: 📥 Clone Kernel Source
         run: |
