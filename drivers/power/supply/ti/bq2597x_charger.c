@@ -1579,7 +1579,18 @@ static int bq2597x_parse_dt(struct bq2597x *bq, struct device *dev)
 		bq->bypass_mode_enable = (int)bq->cfg->sc8551_bypass_enable;
 	}
 
-	bq->vbat_calibrate = 0;
+	if (bq->hw_version == HARDWARE_PLATFORM_COURBET) {
+		if (bq->chip_vendor == SC8551) {
+			if (bq->mass_production)
+				ret = of_property_read_u32(np, "mp-sc-vbat-calibrate", &bq->vbat_calibrate);
+			else
+				ret = of_property_read_u32(np, "pre-mp-sc-vbat-calibrate", &bq->vbat_calibrate);
+		} else {
+			ret = of_property_read_u32(np, "ti-vbat-calibrate", &bq->vbat_calibrate);
+		}
+	} else {
+		bq->vbat_calibrate = 0;
+	}
 
 	if (ret) {
 		bq_err("failed to read vbat_calibrate\n");
@@ -2056,6 +2067,7 @@ static int bq2597x_charger_get_property(struct power_supply *psy,
 		break;
 	case POWER_SUPPLY_PROP_CP_VBAT_CALIBRATE:
 		val->intval = bq->vbat_calibrate;
+		break;
 	default:
 		return -EINVAL;
 

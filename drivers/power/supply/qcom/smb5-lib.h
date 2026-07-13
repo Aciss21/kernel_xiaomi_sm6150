@@ -135,7 +135,7 @@ enum print_reason {
 #define HIGH_NUM_PULSE_THR			12
 
 #define PD_UNVERIFED_CURRENT		4800000
-#ifdef CONFIG_K6_CHARGE
+#if defined(CONFIG_K6_CHARGE) || defined(CONFIG_K9A_CHARGE)
 #define PD_UNVERIFED_VOLTAGE		4450000
 #else
 #define PD_UNVERIFED_VOLTAGE		4400000
@@ -167,6 +167,13 @@ enum print_reason {
 
 /* defined for un_compliant Type-C cable */
 #define CC_UN_COMPLIANT_START_DELAY_MS	700
+
+#ifdef CONFIG_K9A_CHARGE
+#define REVERSE_BOOST_WORK_RECHECK_DELAY_MS	100
+#define REVERSE_BOOST_WORK_START_DELAY_MS	300
+#define REVERSE_BOOST_MIN_IBAT_MA		100
+#define REVERSE_BOOST_MAX_IBUS_MA		200
+#endif
 
 #define VBAT_TO_VRAW_ADC(v)		div_u64((u64)v * 1000000UL, 194637UL)
 
@@ -218,7 +225,7 @@ enum print_reason {
 
 /* ffc related */
 #define NON_FFC_VFLOAT_VOTER			"NON_FFC_VFLOAT_VOTER"
-#ifdef CONFIG_K6_CHARGE
+#if defined(CONFIG_K6_CHARGE) || defined(CONFIG_K9A_CHARGE)
 #define NON_FFC_VFLOAT_UV			4450000
 #else
 #define NON_FFC_VFLOAT_UV			4400000
@@ -642,6 +649,9 @@ struct smb_charger {
 	struct delayed_work	reduce_fcc_work;
 	struct delayed_work	status_report_work;
 	struct delayed_work	thermal_setting_work;
+#ifdef CONFIG_K9A_CHARGE
+	struct delayed_work	reverse_boost_work;
+#endif
 
 	struct alarm		lpd_recheck_timer;
 	struct alarm		moisture_protection_alarm;
@@ -884,6 +894,9 @@ struct smb_charger {
 	int 			qc3p5_power_limit_w;
 
 	bool			pps_fcc_therm_work_disabled;
+
+	bool			reverse_boost_wa;
+	int			reverse_count;
 };
 
 enum quick_charge_type {

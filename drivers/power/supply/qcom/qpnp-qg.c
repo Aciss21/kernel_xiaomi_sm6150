@@ -3067,6 +3067,9 @@ static void profile_load_work(struct work_struct *work)
 				struct qpnp_qg,
 				profile_load_work.work);
 
+#ifdef CONFIG_K9A_CHARGE
+	return;
+#endif
 	rc = qg_setup_battery(chip);
 	if (chip->profile_judge_done) {
 		qg_sanitize_sdam(chip);
@@ -3243,12 +3246,14 @@ static int qg_notifier_cb(struct notifier_block *nb,
 		 */
 		pm_stay_awake(chip->dev);
 		schedule_work(&chip->qg_status_change_work);
+#ifndef CONFIG_K9A_CHARGE
 		if ((strcmp(psy->desc->name, "usb") == 0)){
 			if (chip->qg_psy)
 			{
 				power_supply_changed(chip->qg_psy);
 			}
 		}
+#endif
 	}
 
 	return NOTIFY_OK;
@@ -3533,6 +3538,27 @@ static int qg_load_battery_profile(struct qpnp_qg *chip)
 				pr_err("qg_load_battery_profile : get romid error.\n");
 			}
 		}
+
+#ifdef CONFIG_K9A_CHARGE
+		if (pval.intval == true) {
+			rc = power_supply_get_property(chip->max_verify_psy,
+					POWER_SUPPLY_PROP_PAGE0_DATA, &pval);
+			if (rc < 0) {
+				pr_err("qg_load_battery_profile : get page0 error.\n");
+			} else {
+				if ((pval.arrayval[0] == 'S') || (pval.arrayval[0] == 'X')) {
+					profile_node = of_batterydata_get_best_profile(chip->batt_node,
+						chip->batt_id_ohm / 1000, "K9A_sunwoda_4250mah");
+					chip->profile_judge_done = true;
+				} else if ((pval.arrayval[0] == 'C') || (pval.arrayval[0] == 'V')) {
+					profile_node = of_batterydata_get_best_profile(chip->batt_node,
+						chip->batt_id_ohm / 1000, "K9A_cosmx_4250mah");
+					chip->profile_judge_done = true;
+				}
+			}
+		}
+#endif
+
 #ifdef CONFIG_K6_CHARGE
 		if (is_batt_vendor_swd) {
 			pr_err("is_batt_vendor_swd is %d\n", is_batt_vendor_swd);
@@ -3548,7 +3574,7 @@ static int qg_load_battery_profile(struct qpnp_qg *chip)
 
 #endif
 
-#ifndef CONFIG_K6_CHARGE
+#if !defined(CONFIG_K6_CHARGE) && !defined(CONFIG_K9A_CHARGE)
 		// the battery is xiaomi's batt; FC code, custom id
 		if (pval.intval == true) {
 			rc = power_supply_get_property(chip->max_verify_psy,
@@ -3573,6 +3599,9 @@ static int qg_load_battery_profile(struct qpnp_qg *chip)
 #ifdef CONFIG_K6_CHARGE
 				profile_node = of_batterydata_get_best_profile(chip->batt_node,
 					chip->batt_id_ohm / 1000, "K6_sunwoda_5020mah");
+#elif defined(CONFIG_K9A_CHARGE)
+				profile_node = of_batterydata_get_best_profile(chip->batt_node,
+					chip->batt_id_ohm / 1000, "K9A_sunwoda_4250mah");
 #else
 				profile_node = of_batterydata_get_best_profile(chip->batt_node,
 					chip->batt_id_ohm / 1000, "G7BSWDBM4P_4500mAh");
