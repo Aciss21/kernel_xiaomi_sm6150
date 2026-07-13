@@ -617,6 +617,13 @@ config K6_CHARGE
 	  Say Y to enable Xiaomi Redmi Note 10 Pro (K6/sweet) specific
 	  modifications.
 
+config K9A_CHARGE
+	bool
+	prompt "K9A/courbet special modify."
+	default n
+	help
+		Xiaomi Mi 11 Lite 4G (K9A/courbet) special modify.
+
 source "drivers/power/supply/qcom/Kconfig"
 source "drivers/power/supply/maxim/Kconfig"
 source "drivers/power/supply/ti/Kconfig"
