@@ -34,6 +34,8 @@
 #include "smb5-lib.h"
 #include "schgm-flash.h"
 
+#include <soc/qcom/socinfo.h>
+
 static struct smb_params smb5_pmi632_params = {
 	.fcc			= {
 		.name   = "fast charge current",
@@ -943,7 +945,9 @@ static int smb5_parse_dt(struct smb5 *chip)
 			pr_err("failed to vbus disable gpio flags\n");
 		}
 	}
-
+#ifdef CONFIG_K9A_CHARGE
+	chg->reverse_boost_wa = of_property_read_bool(node, "mi,reverse_boost-wa");
+#endif
 	chg->uart_en_gpio = of_get_named_gpio(node, "uart-en-gpio", 0);
 	if (!gpio_is_valid(chg->uart_en_gpio))
 		pr_err("failed to get uart_en_gpio\n");
@@ -3188,7 +3192,19 @@ static int smb5_init_hw(struct smb5 *chip)
 	int rc, type = 0;
 	u8 val = 0, mask = 0;
 	union power_supply_propval pval;
+#ifdef CONFIG_K9A_CHARGE
+	uint32_t hw_version;
 
+	hw_version = get_hw_version_platform();
+
+	if (hw_version == HARDWARE_PLATFORM_COURBET) {
+		rc = smblib_masked_write(chg, TYPE_C_TCCDEBOUNCE_CFG, TYPEC_TCCDEBOUNCE_TIMEOUT_SEL_MASK, 0);
+		if (rc < 0) {
+			dev_err(chg->dev,"Couldn't configure CC debounce timeout rc = %d\n", rc);
+			return rc;
+		}
+	}
+#endif
 	if (chip->dt.no_battery)
 		chg->fake_capacity = 50;
 

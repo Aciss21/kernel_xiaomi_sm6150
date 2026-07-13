@@ -3982,6 +3982,69 @@ static int smblib_set_sw_conn_therm_regulation(struct smb_charger *chg,
 	return rc;
 }
 
+static void smblib_reverse_boost_work(struct work_struct *work)
+{
+	struct smb_charger *chg = container_of(work, struct smb_charger, reverse_boost_work.work);
+	union power_supply_propval pval = {0, };
+	int rc = 0;
+	u8 reg = 0;
+
+	if (!chg->reverse_boost_wa)
+		return;
+
+	if (chg->real_charger_type == POWER_SUPPLY_TYPE_USB_CDP || chg->real_charger_type == POWER_SUPPLY_TYPE_USB)
+		return;
+	else if (chg->real_charger_type != POWER_SUPPLY_TYPE_USB_HVDCP_3 && chg->real_charger_type != POWER_SUPPLY_TYPE_USB_HVDCP_3P5 && chg->pd_active != POWER_SUPPLY_PD_PPS_ACTIVE)
+		goto clear_count;
+
+	rc = smblib_read(chg, AICL_STATUS_REG, &reg);
+	if (rc < 0 || !(reg & ICL_MIN_BIT))
+		goto clear_count;
+
+	rc = smblib_read(chg, TYPE_C_SENSOR_SM_STATUS_REG, &reg);
+	if (rc < 0 || (reg & VBUS_VSAFE5V_BIT))
+		goto clear_count;
+
+	rc = smblib_read(chg, INT_RT_STS_REG, &reg);
+	if (rc < 0 || !(reg & USBIN_PLUGIN_RT_STS_BIT))
+		goto clear_count;
+
+	if (!chg->cp_psy)
+		chg->cp_psy = power_supply_get_by_name("bq2597x-standalone");
+
+	if (!chg->bms_psy || !chg->cp_psy || !chg->usb_psy)
+		goto clear_count;
+
+	rc = power_supply_get_property(chg->cp_psy, POWER_SUPPLY_PROP_CHARGING_ENABLED, &pval);
+	if (pval.intval)
+		goto clear_count;
+
+	rc = power_supply_get_property(chg->bms_psy, POWER_SUPPLY_PROP_CURRENT_NOW, &pval);
+	if ((pval.intval / 1000) <= REVERSE_BOOST_MIN_IBAT_MA)
+		goto clear_count;
+
+	rc = power_supply_get_property(chg->usb_psy, POWER_SUPPLY_PROP_INPUT_CURRENT_NOW, &pval);
+	if ((pval.intval / 1000) >= REVERSE_BOOST_MAX_IBUS_MA)
+		goto clear_count;
+
+	chg->reverse_count++;
+	goto recheck;
+
+clear_count:
+	chg->reverse_count = 0;
+
+recheck:
+	if (chg->reverse_count >= 2) {
+		smblib_masked_write(chg, USBIN_CMD_IL_REG, USBIN_SUSPEND_BIT, USBIN_SUSPEND_BIT);
+		msleep(250);
+		smblib_masked_write(chg, USBIN_CMD_IL_REG, USBIN_SUSPEND_BIT, 0);
+	} else {
+		schedule_delayed_work(&chg->reverse_boost_work, msecs_to_jiffies(REVERSE_BOOST_WORK_RECHECK_DELAY_MS));
+	}
+
+	return;
+}
+
 #define CHG_DETECT_CONN_THERM_US		120000000	/* 120sec */
 static void smblib_conn_therm_work(struct work_struct *work)
 {
@@ -6725,6 +6788,10 @@ void smblib_usb_plugin_hard_reset_locked(struct smb_charger *chg)
 	vbus_rising = (bool)(stat & USBIN_PLUGIN_RT_STS_BIT);
 
 	if (vbus_rising) {
+#ifdef CONFIG_K9A_CHARGE
+		chg->reverse_count = 0;
+		schedule_delayed_work(&chg->reverse_boost_work, msecs_to_jiffies(REVERSE_BOOST_WORK_START_DELAY_MS));
+#endif
 		/* hold chg_awake wakeup source when charger is present */
 		vote(chg->awake_votable, CHG_AWAKE_VOTER, true, 0);
 		/* Remove FCC_STEPPER 1.5A init vote to allow FCC ramp up */
@@ -6746,6 +6813,10 @@ void smblib_usb_plugin_hard_reset_locked(struct smb_charger *chg)
 			}
 		}
 
+#ifdef CONFIG_K9A_CHARGE
+		chg->reverse_count = 0;
+		cancel_delayed_work_sync(&chg->reverse_boost_work);
+#endif
 		cancel_delayed_work_sync(&chg->charger_type_recheck);
 		chg->hvdcp_recheck_status = false;
 		chg->recheck_charger = false;
@@ -6825,11 +6896,19 @@ void smblib_usb_plugin_locked(struct smb_charger *chg)
 					msecs_to_jiffies(CHARGER_RECHECK_DELAY_MS));
 		schedule_delayed_work(&chg->cc_un_compliant_charge_work,
 					msecs_to_jiffies(CC_UN_COMPLIANT_START_DELAY_MS));
+#ifdef CONFIG_K9A_CHARGE
+		chg->reverse_count = 0;
+		schedule_delayed_work(&chg->reverse_boost_work, msecs_to_jiffies(REVERSE_BOOST_WORK_START_DELAY_MS));
+#endif
 		if (chg->use_bq_pump)
 			schedule_delayed_work(&chg->reduce_fcc_work,
 						msecs_to_jiffies(ESR_WORK_TIME_180S));
 	} else {
 		cancel_delayed_work_sync(&chg->charger_type_recheck);
+#ifdef CONFIG_K9A_CHARGE
+		chg->reverse_count = 0;
+		cancel_delayed_work_sync(&chg->reverse_boost_work);
+#endif
 		if (chg->use_bq_pump) {
 			cancel_delayed_work_sync(&chg->reduce_fcc_work);
 			vote(chg->fcc_votable, ESR_WORK_VOTER, false, 0);
@@ -10002,6 +10081,10 @@ int smblib_init(struct smb_charger *chg)
 	}
 	INIT_DELAYED_WORK(&chg->pr_lock_clear_work,
 					smblib_pr_lock_clear_work);
+#ifdef CONFIG_K9A_CHARGE
+	INIT_DELAYED_WORK(&chg->reverse_boost_work, smblib_reverse_boost_work);
+	setup_timer(&chg->apsd_timer, apsd_timer_cb, (unsigned long)chg);
+#endif
 	if (chg->dcin_uusb_over_gpio_en)
 		INIT_DELAYED_WORK(&chg->micro_usb_switch_work,
 					smblib_micro_usb_switch_work);
@@ -10177,6 +10260,9 @@ int smblib_deinit(struct smb_charger *chg)
 		cancel_delayed_work_sync(&chg->six_pin_batt_step_chg_work);
 		cancel_delayed_work_sync(&chg->role_reversal_check);
 		cancel_delayed_work_sync(&chg->pr_swap_detach_work);
+#ifdef CONFIG_K9A_CHARGE
+		cancel_delayed_work_sync(&chg->reverse_boost_work);
+#endif
 		power_supply_unreg_notifier(&chg->nb);
 		smblib_destroy_votables(chg);
 		qcom_step_chg_deinit();
