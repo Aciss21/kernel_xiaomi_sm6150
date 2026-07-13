@@ -611,6 +611,13 @@ config CHARGER_RT9455
 	help
 	  Say Y to enable support for Richtek RT9455 battery charger.
 
+config K9A_CHARGE
+	bool
+	prompt "K9A/courbet special modify."
+	default n
+	help
+		Xiaomi Mi 11 Lite 4G (K9A/courbet) special modify.
+
 source "drivers/power/supply/qcom/Kconfig"
 source "drivers/power/supply/maxim/Kconfig"
 source "drivers/power/supply/maxim_k6/Kconfig"
