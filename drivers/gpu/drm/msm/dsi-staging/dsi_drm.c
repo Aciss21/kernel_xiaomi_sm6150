@@ -224,7 +224,12 @@ static void dsi_bridge_pre_enable(struct drm_bridge *bridge)
 	if (c_bridge->display->is_prim_display && atomic_read(&prim_panel_is_on)) {
 		cancel_delayed_work_sync(&prim_panel_work);
 		__pm_relax(&prim_panel_wakelock);
+	#ifdef CONFIG_MACH_XIAOMI_COURBET
+		if (!(c_bridge->dsi_mode.dsi_mode_flags & DSI_MODE_FLAG_DMS))
+			return;
+	#else
 		return;
+	#endif
 	}
 
 	if (c_bridge->dsi_mode.dsi_mode_flags &
