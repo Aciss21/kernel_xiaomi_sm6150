@@ -1887,6 +1887,43 @@ static int sde_connector_atomic_check(struct drm_connector *connector,
 	return 0;
 }
 
+#ifdef CONFIG_MACH_XIAOMI_COURBET
+static irqreturn_t esd_err_irq_handle(int irq, void *data)
+{
+	struct sde_connector *c_conn = data;
+	struct dsi_display *dsi_display;
+	struct drm_event event;
+	bool panel_on = false;
+	char err_irq_gpio_value = 1;
+
+	if (!c_conn && !c_conn->display) {
+		SDE_ERROR("not able to get connector object\n");
+		return IRQ_HANDLED;
+	}
+
+	dsi_display = (struct dsi_display *)c_conn->display;
+
+	if (c_conn->connector_type == DRM_MODE_CONNECTOR_DSI) {
+		if (dsi_display && dsi_display->panel && dsi_display->panel->esd_config.esd_err_irq_gpio > 0) {
+			panel_on = dsi_display->panel->panel_initialized;
+			err_irq_gpio_value = gpio_get_value(dsi_display->panel->esd_config.esd_err_irq_gpio);
+		}
+	}
+
+	if (panel_on && (c_conn->panel_dead == false) && err_irq_gpio_value == 0) {
+		SDE_ERROR("esd check irq report PANEL_DEAD conn_id: %d enc_id: %d, panel_status[%d]\n",
+		c_conn->base.base.id, c_conn->encoder->base.id, panel_on);
+		c_conn->panel_dead = true;
+		event.type = DRM_EVENT_PANEL_DEAD;
+		event.length = sizeof(bool);
+		msm_mode_object_event_notify(&c_conn->base.base,
+			c_conn->base.dev, &event, (u8 *)&c_conn->panel_dead);
+		sde_encoder_display_failure_notification(c_conn->encoder, false);
+	}
+	return IRQ_HANDLED;
+}
+#endif
+
 static void _sde_connector_report_panel_dead(struct sde_connector *conn,
 	bool skip_pre_kickoff)
 {
@@ -2323,6 +2360,23 @@ struct drm_connector *sde_connector_init(struct drm_device *dev,
 				sizeof(dsi_display->panel->hdr_props),
 				CONNECTOR_PROP_HDR_INFO);
 		}
+
+#ifdef CONFIG_MACH_XIAOMI_COURBET
+		/* register esd irq and enable it after panel enabled */
+		if (dsi_display && dsi_display->panel &&
+			dsi_display->panel->esd_config.esd_err_irq_gpio > 0) {
+			rc = request_threaded_irq(dsi_display->panel->esd_config.esd_err_irq,
+							NULL, esd_err_irq_handle,
+							dsi_display->panel->esd_config.esd_err_irq_flags,
+							"esd_err_irq", c_conn);
+			if (rc < 0) {
+				pr_err("%s: request irq %d failed\n", __func__, dsi_display->panel->esd_config.esd_err_irq);
+					dsi_display->panel->esd_config.esd_err_irq = 0;
+			} else {
+				pr_info("%s: Request esd irq succeed!\n", __func__);
+			}
+		}
+#endif
 	}
 
 	rc = sde_connector_get_info(&c_conn->base, &display_info);
