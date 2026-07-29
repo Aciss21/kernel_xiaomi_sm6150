@@ -1,17 +1,33 @@
-name: 🔨 Build Kernel
+name: Evangelical
 
 on:
   workflow_dispatch:
     inputs:
+      repo:
+        description: 'URL repo kernel (kosongkan untuk pakai repo ini sendiri)'
+        required: true
+        default: "https://github.com/orlan-kecap/Aciss-mainline.git"
+        type: string
       branch:
         description: "Branch"
         required: true
-        default: "A16"
+        default: "aosp"
+        type: string
+        
+      ksu:
+        description: "KernelSU"
+        required: true
+        default: "none"
         type: choice
         options:
-          - A16
-          
-          
+          - none
+          - KernelSU-Next
+
+env:
+  NEUTRON_URL: https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/10032024/neutron-clang-10032024.tar.zst
+  GCC64_REPO: https://github.com/greenforce-project/gcc-arm64
+  GCC32_REPO: https://github.com/greenforce-project/gcc-arm
+
 jobs:
   build:
     name: Build Kernel
@@ -21,14 +37,63 @@ jobs:
       - name: 📦 Install Dependencies
         run: |
           sudo apt update -y
-          sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev dwarves bc rsync cpio python3 python3-pip git curl wget make lz4 zip unzip ccache
+          sudo apt install -y build-essential libncurses-dev bison flex libssl-dev libelf-dev dwarves bc rsync cpio python3 python3-pip git curl wget make lz4 zip unzip ccache zstd
           sudo apt install -y fakeroot device-tree-compiler libdw-dev pkg-config lld llvm
-          
+
       - name: 📥 Clone Kernel Source
         run: |
-          git clone --depth=1 -b ${{ github.event.inputs.branch }} https://github.com/Kenz-kecap/Deandless-Road.git kernel
+          git clone -q --depth=1 -b ${{ github.event.inputs.branch }} ${{ github.event.inputs.repo }} kernel
 
-      - name: 🔨 Build
+      - name: 🧩 Setup KernelSU
+        if: ${{ github.event.inputs.ksu == 'KernelSU-Next' }}
         working-directory: kernel
-        run: bash mk.sh
-        
+        run: |
+          curl -LSs "https://raw.githubusercontent.com/Courbet-List/KernelSU-Next/stable/kernel/setup.sh" | bash -s syscall
+          
+      - name: 🛠️ Setup Toolchain (Clang + GCC)
+        run: |
+          mkdir -p toolchain
+          cd toolchain
+
+          echo "Downloading Neutron Clang..."
+          mkdir -p clang-neutron
+          cd clang-neutron
+          wget -q "${{ env.NEUTRON_URL }}" -O neutron-clang.tar.zst
+          tar --zstd -xf neutron-clang.tar.zst
+          rm -f neutron-clang.tar.zst
+          cd ..
+
+          echo "Cloning GCC64 greenforce..."
+          git clone -q "${{ env.GCC64_REPO }}" -b main --depth=1 gcc64-greenforce
+
+          echo "Cloning GCC32 greenforce..."
+          git clone -q "${{ env.GCC32_REPO }}" -b main --depth=1 gcc32-greenforce
+
+      - name: 🔍 Detect Cross-Compile Prefix
+        id: prefix
+        run: |
+          GCC64_DIR="$(pwd)/toolchain/gcc64-greenforce/bin"
+          GCC32_DIR="$(pwd)/toolchain/gcc32-greenforce/bin"
+
+          CROSS_COMPILE_PREFIX=$(find "$GCC64_DIR" -maxdepth 1 -name "*-gcc" | head -n1 | xargs -n1 basename | sed 's/gcc$//')
+          CROSS_COMPILE_ARM32_PREFIX=$(find "$GCC32_DIR" -maxdepth 1 -name "*-gcc" | head -n1 | xargs -n1 basename | sed 's/gcc$//')
+
+          if [ -z "$CROSS_COMPILE_PREFIX" ] || [ -z "$CROSS_COMPILE_ARM32_PREFIX" ]; then
+            echo "❌ Gagal deteksi prefix GCC"
+            exit 1
+          fi
+
+          echo "cross_compile=$CROSS_COMPILE_PREFIX" >> "$GITHUB_OUTPUT"
+          echo "cross_compile_arm32=$CROSS_COMPILE_ARM32_PREFIX" >> "$GITHUB_OUTPUT"
+
+      - name: 🔨 Build Kernel
+        working-directory: kernel
+        env:
+          CLANG_DIR: ${{ github.workspace }}/toolchain/clang-neutron/bin
+          GCC64_DIR: ${{ github.workspace }}/toolchain/gcc64-greenforce/bin
+          GCC32_DIR: ${{ github.workspace }}/toolchain/gcc32-greenforce/bin
+          CROSS_COMPILE_PREFIX: ${{ steps.prefix.outputs.cross_compile }}
+          CROSS_COMPILE_ARM32_PREFIX: ${{ steps.prefix.outputs.cross_compile_arm32 }}
+        run: |
+          export PATH="$CLANG_DIR:$GCC64_DIR:$GCC32_DIR:$PATH"
+          bash la
