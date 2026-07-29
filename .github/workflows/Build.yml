@@ -6,7 +6,7 @@ on:
       repo:
         description: 'URL repo kernel (kosongkan untuk pakai repo ini sendiri)'
         required: true
-        default: "https://github.com/orlan-kecap/Aciss-mainline.git"
+        default: "https://github.com/Kenz-kecap/Deandless-Road.git"
         type: string
       branch:
         description: "Branch"
