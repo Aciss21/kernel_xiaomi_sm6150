@@ -71,6 +71,11 @@ jobs:
         export BUILD_DATE=$BUILD_DATE
         export CFLAGS_EXTRA="-DBUILD_DATE=$BUILD_DATE"
         make O=out ARCH=arm64 vendor/sweet_defconfig
+        scripts/kconfig/merge_config.sh \
+        -O out \
+        arch/arm64/configs/vendor/sweet_defconfig \
+        arch/arm64/configs/vendor/droidspaces_defconfig
+        make O=out ARCH=arm64 olddefconfig
         make -j$(nproc --all) \
           O=out \
           ARCH=arm64 \
