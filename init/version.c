@@ -27,7 +27,7 @@ struct uts_namespace init_uts_ns = {
 	.name = {
 		.sysname	= UTS_SYSNAME,
 		.nodename	= UTS_NODENAME,
-		.release	= "5.4.299-Deandless-Road",
+		.release	= UTS_RELEASE,
 		.version	= UTS_VERSION,
 		.machine	= UTS_MACHINE,
 		.domainname	= UTS_DOMAINNAME,
@@ -41,18 +41,17 @@ struct uts_namespace init_uts_ns = {
 EXPORT_SYMBOL_GPL(init_uts_ns);
 
 /* FIXED STRINGS! Don't touch! 
-custom banner by Exotic GANK */
+custom banner */
 #ifndef BUILD_DATE
-#define BUILD_DATE "47° Oblivion"
+#define BUILD_DATE "D1+° Oblivion"
 #endif
 
 const char linux_banner[] =
-    "Linux version 5.4.299-Deandless-Road (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")\n"
-    "(Android (EstehX-002, +pgo, +bolt, +lto, +mlgo, based on llvm-project) Clang 19.0.0 (Neutron), LLD 19.0.0)\n"
+    "Linux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@"
+	LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION "
     "Crafted in " BUILD_DATE "\n";
 
 const char linux_proc_banner[] =
-    "%s version %s"
-    " (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ") "
-    "(Android (EstehX-002, +pgo, +bolt, +lto, +mlgo, based on llvm-project) Clang 19.0.0 (Neutron), LLD 19.0.0) "
-    "Crafted in " BUILD_DATE "\n";
+	"%s version %s"
+	" (" LINUX_COMPILE_BY "@" LINUX_COMPILE_HOST ")"
+	" (" LINUX_COMPILER ") %s\n";
