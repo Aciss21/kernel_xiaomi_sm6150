@@ -142,13 +142,13 @@ config CPU_FREQ_DEFAULT_GOV_BLU_SCHEDUTIL
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 	  
-config CPU_FREQ_DEFAULT_GOV_SCHEDHORIZON
-	bool "schedhorizon"
+config CPU_FREQ_DEFAULT_GOV_NERV
+	bool "nerv"
 	depends on SMP
-	select CPU_FREQ_GOV_SCHEDHORIZON
+	select CPU_FREQ_GOV_NERV
 	select CPU_FREQ_GOV_PERFORMANCE
 	help
-	  Use the 'schedhorizon' CPUFreq governor by default. If unsure,
+	  Use the 'nerv' CPUFreq governor by default. If unsure,
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
 	  
@@ -369,8 +369,8 @@ config CPU_FREQ_GOV_BLU_SCHEDUTIL
 
 	  If in doubt, say N.
 	  
-config CPU_FREQ_GOV_SCHEDHORIZON
-	bool "'schedhorizon' cpufreq policy governor"
+config CPU_FREQ_GOV_NERV
+	bool "'nerv' cpufreq policy governor"
 	depends on CPU_FREQ && SMP
 	select CPU_FREQ_GOV_ATTR_SET
 	select IRQ_WORK
@@ -387,65 +387,65 @@ config CPU_FREQ_GOV_SCHEDHORIZON
           to 2400mhz.
 	  If in doubt, say N.
 
-if CPU_FREQ_GOV_SCHEDHORIZON
+if CPU_FREQ_GOV_NERV
 
-config SCHEDHORIZON_DEFAULT_UP_RATE_LIMIT_HP
+config NERV_DEFAULT_UP_RATE_LIMIT_HP
 	int "Default up rate-limit for schedutil on big cluster"
 	default 2000
 	help
 	  This sets schedutil's default frequency up rate-limit for big cluster in
 	  microseconds.
 
-config SCHEDHORIZON_DEFAULT_DOWN_RATE_LIMIT_HP
+config NERV_DEFAULT_DOWN_RATE_LIMIT_HP
 	int "Default down rate-limit for schedutil on big cluster"
 	default 2000
 	help
 	  This sets schedutil's default frequency down rate-limit in
 	  microseconds.
 
-config SCHEDHORIZON_DEFAULT_UP_RATE_LIMIT_LP
+config NERV_DEFAULT_UP_RATE_LIMIT_LP
 	int "Default up rate-limit for schedutil on little cluster"
 	default 2000
 	help
 	  This sets schedutil's default frequency up rate-limit for little cluster in
 	  microseconds.
 
-config SCHEDHORIZON_DEFAULT_DOWN_RATE_LIMIT_LP
+config NERV_DEFAULT_DOWN_RATE_LIMIT_LP
 	int "Default down rate-limit for schedutil on little cluster"
 	default 2000
 	help
 	  This sets schedutil's default frequency down rate-limit for little cluster in
 	  microseconds.
 	  
-config SCHEDHORIZON_DEFAULT_EFFICIENT_FREQ_LP
+config NERV_DEFAULT_EFFICIENT_FREQ_LP
 	int "Default efficient frequency for the lp cluster"
 	default 0
 	help
-	  This sets schedhorizon's default efficient frequency for the lp
+	  This sets nerv's default efficient frequency for the lp
 	  cluster. This frequency needs to be set according to the available
 	  frequencies at cpufreq-table-0 for the little cores.
 
-config SCHEDHORIZON_DEFAULT_EFFICIENT_FREQ_HP
+config NERV_DEFAULT_EFFICIENT_FREQ_HP
 	int "Default efficient frequency for the hp cluster"
 	default 0
 	help
-	  This sets schedhorizon's default efficient frequency for the hp
+	  This sets nerv's default efficient frequency for the hp
 	  cluster. This frequency needs to be set according to the available
 	  frequencies at cpufreq-table-4 for the big cores.
 
-config SCHEDHORIZON_DEFAULT_UP_DELAY_LP
+config NERV_DEFAULT_UP_DELAY_LP
 	int "Default multiplicand of the up delay for the lp cluster"
 	default "100"
 	help
-	  This sets schedhorizon's default up delay for the lp cluster where
+	  This sets nerv's default up delay for the lp cluster where
 	  the default value acts as a multiplicand which is to be multiplied
 	  by the number of nanosecond in one milisecond (NSEC_PER_MSEC).
 
-config SCHEDHORIZON_DEFAULT_UP_DELAY_HP
+config NERV_DEFAULT_UP_DELAY_HP
 	int "Default multiplicand of the up delay for the hp cluster"
 	default "100"
 	help
-	  This sets schedhorizon's default up delay for the hp cluster where
+	  This sets nerv's default up delay for the hp cluster where
 	  the default value acts as a multiplicand which is to be multiplied
 	  by the number of nanosecond in one milisecond (NSEC_PER_MSEC).
 endif

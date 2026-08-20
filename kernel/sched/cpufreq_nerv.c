@@ -1,8 +1,8 @@
 /*
  * CPUFreq governor based on scheduler-provided CPU utilization data.
  *
- * Copyright (C) 2016, Intel Corporation
- * Author: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+ * Copyright (C) 2026, Nubia Corporation
+ * Author: Acis D, lya <acis.d.lya@nubia.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -10,7 +10,6 @@
  *
  * Base From schedutil cpufreq_govenor  
  *
- * Backported By DenomSly For k4.14 Redmi Note 10 Pro 
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
@@ -27,12 +26,12 @@
 #define SUGOV_KTHREAD_PRIORITY	50
 
 /* Define default efficient frequencies for big and LITTLE cores */
-static unsigned int default_efficient_freq_lp[] = {CONFIG_SCHEDHORIZON_DEFAULT_EFFICIENT_FREQ_LP};
-static unsigned int default_efficient_freq_perf[] = {CONFIG_SCHEDHORIZON_DEFAULT_EFFICIENT_FREQ_HP};
+static unsigned int default_efficient_freq_lp[] = {CONFIG_NERV_DEFAULT_EFFICIENT_FREQ_LP};
+static unsigned int default_efficient_freq_perf[] = {CONFIG_NERV_DEFAULT_EFFICIENT_FREQ_HP};
 
 /* Define default up delays for big and LITTLE cores */
-static unsigned int default_up_delay_lp[] = {CONFIG_SCHEDHORIZON_DEFAULT_UP_DELAY_LP};
-static unsigned int default_up_delay_perf[] = {CONFIG_SCHEDHORIZON_DEFAULT_UP_DELAY_HP};
+static unsigned int default_up_delay_lp[] = {CONFIG_NERV_DEFAULT_UP_DELAY_LP};
+static unsigned int default_up_delay_perf[] = {CONFIG_NERV_DEFAULT_UP_DELAY_HP};
 
 struct sugov_tunables {
 	struct gov_attr_set attr_set;
@@ -209,7 +208,7 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 
 /**
  * get_next_freq - Compute a new frequency for a given cpufreq policy.
- * @sg_policy: schedhorizon policy object to compute the new frequency for.
+ * @sg_policy: nerv policy object to compute the new frequency for.
  * @util: Current CPU utilization.
  * @max: CPU capacity.
  *
@@ -391,13 +390,13 @@ static void sugov_irq_work(struct irq_work *irq_work)
 	sg_policy = container_of(irq_work, struct sugov_policy, irq_work);
 
 	/*
-	 * For RT and deadline tasks, the schedhorizon governor shoots the
+	 * For RT and deadline tasks, the nerv governor shoots the
 	 * frequency to maximum. Special care must be taken to ensure that this
 	 * kthread doesn't result in the same behavior.
 	 *
 	 * This is (mostly) guaranteed by the work_in_progress flag. The flag is
 	 * updated only at the end of the sugov_work() function and before that
-	 * the schedhorizon governor rejects all other frequency scaling requests.
+	 * the nerv governor rejects all other frequency scaling requests.
 	 *
 	 * There is a very rare case though, where the RT thread yields right
 	 * after the work_in_progress flag is cleared. The effects of that are
@@ -621,7 +620,7 @@ static struct kobj_type sugov_tunables_ktype = {
 
 /********************** cpufreq governor interface *********************/
 
-static struct cpufreq_governor schedhorizon_gov;
+static struct cpufreq_governor nerv_gov;
 
 static struct sugov_policy *sugov_policy_alloc(struct cpufreq_policy *policy)
 {
@@ -806,16 +805,16 @@ static int sugov_init(struct cpufreq_policy *policy)
 		
     if (cpumask_test_cpu(policy->cpu, cpu_perf_mask)) {
 		tunables->up_rate_limit_us =
-					CONFIG_SCHEDHORIZON_DEFAULT_UP_RATE_LIMIT_HP;
+					CONFIG_NERV_DEFAULT_UP_RATE_LIMIT_HP;
 		tunables->down_rate_limit_us =
-					CONFIG_SCHEDHORIZON_DEFAULT_DOWN_RATE_LIMIT_HP;
+					CONFIG_NERV_DEFAULT_DOWN_RATE_LIMIT_HP;
 	}
         	
 	if (cpumask_test_cpu(policy->cpu, cpu_lp_mask)) {
 		tunables->up_rate_limit_us =
-					CONFIG_SCHEDHORIZON_DEFAULT_UP_RATE_LIMIT_LP;
+					CONFIG_NERV_DEFAULT_UP_RATE_LIMIT_LP;
 		tunables->down_rate_limit_us =
-					CONFIG_SCHEDHORIZON_DEFAULT_DOWN_RATE_LIMIT_LP;
+					CONFIG_NERV_DEFAULT_DOWN_RATE_LIMIT_LP;
 	}
 	
 	if (cpumask_test_cpu(sg_policy->policy->cpu, cpu_lp_mask)) {
@@ -838,7 +837,7 @@ static int sugov_init(struct cpufreq_policy *policy)
 
 	ret = kobject_init_and_add(&tunables->attr_set.kobj, &sugov_tunables_ktype,
 				   get_governor_parent_kobj(policy), "%s",
-				   schedhorizon_gov.name);
+				   nerv_gov.name);
 	if (ret)
 		goto fail;
 
@@ -952,8 +951,8 @@ static void sugov_limits(struct cpufreq_policy *policy)
 	sg_policy->need_freq_update = true;
 }
 
-static struct cpufreq_governor schedhorizon_gov = {
-	.name = "schedhorizon",
+static struct cpufreq_governor nerv_gov = {
+	.name = "NeRv",
 	.owner = THIS_MODULE,
 	.init = sugov_init,
 	.exit = sugov_exit,
@@ -962,11 +961,11 @@ static struct cpufreq_governor schedhorizon_gov = {
 	.limits = sugov_limits,
 };
 
-#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_SCHEDHORIZON
+#ifdef CONFIG_CPU_FREQ_DEFAULT_GOV_NERV
 struct cpufreq_governor *cpufreq_default_governor(void)
 {
-	return &schedhorizon_gov;
+	return &nerv_gov;
 }
 #endif
 
-cpufreq_governor_init(schedhorizon_gov);
+cpufreq_governor_init(nerv_gov);
