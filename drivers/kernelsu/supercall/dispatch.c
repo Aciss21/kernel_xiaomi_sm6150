@@ -466,7 +466,7 @@ static int do_get_hook_mode(void __user *arg)
 #ifdef CONFIG_KSU_KPROBES_KSUD
 	type = "Kprobes";
 #elif defined(CONFIG_KSU_TAMPER_SYSCALL_TABLE)
-	type = "Manipulated";
+	type = "Evagellion";
 #endif
 
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 13, 0)
