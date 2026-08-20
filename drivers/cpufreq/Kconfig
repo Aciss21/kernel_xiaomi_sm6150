@@ -327,7 +327,7 @@ config CPU_FREQ_GOV_REFLEX
           To compile this driver as a module, choose M here: the
           module will be called cpufreq_reflex.
 
-	   If in doubt, say M.
+           If in doubt, say M.
 
 config CPU_FREQ_GOV_INTERACTIVE
 	tristate "'interactive' cpufreq policy governor"
