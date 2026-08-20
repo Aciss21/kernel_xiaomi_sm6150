@@ -48,7 +48,7 @@ custom banner */
 
 const char linux_banner[] =
     "Linux version " UTS_RELEASE " (" LINUX_COMPILE_BY "@"
-	LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION "
+	LINUX_COMPILE_HOST ") (" LINUX_COMPILER ") " UTS_VERSION "\n";
     "Crafted in " BUILD_DATE "\n";
 
 const char linux_proc_banner[] =
