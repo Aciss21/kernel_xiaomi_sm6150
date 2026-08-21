@@ -133,6 +133,12 @@ config CPU_FREQ_DEFAULT_GOV_INTERACTIVE
 	  loading your cpufreq low-level hardware driver, using the
 	  'interactive' governor for latency-sensitive workloads.
 
+config CPU_FREQ_DEFAULT_GOV_NERV
+	bool "nerv"
+	select CPU_FREQ_GOV_NERV
+	help
+	  Use the CPUFreq governor 'nerv' as default.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -277,6 +283,13 @@ config CPU_FREQ_GOV_REFLEX
           module will be called cpufreq_reflex.
 
           If in doubt, say M.
+
+config CPU_FREQ_GOV_NERV
+	tristate "'nerv' cpufreq governor"
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  Custom governor 'nerv'.
 
 config CPU_FREQ_GOV_INTERACTIVE
 	tristate "'interactive' cpufreq policy governor"
