@@ -6044,3 +6044,4 @@ CONFIG_MACH_XIAOMI_COURBET=y
 #
 # RmNet extensions
 #
+# CONFIG_KSU_SUSFS is not set
