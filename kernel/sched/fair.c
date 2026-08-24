@@ -32,6 +32,7 @@
 #include <linux/interrupt.h>
 #include <linux/mempolicy.h>
 #include <linux/migrate.h>
+#include <linux/prefer_silver.h>
 #include <linux/task_work.h>
 
 #include <trace/events/sched.h>
@@ -8560,6 +8561,13 @@ pick_cpu:
 		nohz_balancer_kick(true);
 #endif
 
+#ifdef CONFIG_SCHED_PREFER_SILVER
+	if (prefer_silver_check_task_util(p)) {
+		int silver_cpu = find_best_silver_cpu(p);
+		if (silver_cpu >= 0)
+			return silver_cpu;
+	}
+#endif /* CONFIG_SCHED_PREFER_SILVER */
 	return new_cpu;
 }
 

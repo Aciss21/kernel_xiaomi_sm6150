@@ -56,3 +56,11 @@ endchoice
 
 config PREEMPT_COUNT
        bool
+
+config SCHED_PREFER_SILVER
+	bool "Prefer scheduling light tasks on LITTLE/silver CPUs"
+	depends on SMP
+	default n
+	help
+	  Prefer placing light tasks on LITTLE/silver CPUs based on
+	  util and frequency thresholds. Uses PELT when WALT is disabled.
