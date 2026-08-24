@@ -449,6 +449,16 @@ config MIN_FREQ_PERF
 	help
 	  Min freq to set for hp cluster when boost is over.
 endif
+config CPU_FREQ_GOV_VORPAL
+	tristate "'vorpal' cpufreq policy governor"
+	default m
+	depends on CPU_FREQ && SMP && CPU_FREQ_GOV_SCHEDUTIL
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  Vorpal CPUFreq Governor v1.0, adapted for Linux 4.14.
+	  Combines interactive hispeed ramp-up with PELT tracking.
+	  Module: cpufreq_vorpal. If in doubt, say M.
 
 comment "CPU frequency scaling drivers"
 
