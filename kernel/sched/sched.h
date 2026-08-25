@@ -577,6 +577,10 @@ struct cfs_rq {
 #endif /* CONFIG_SCHED_WALT */
 #endif /* CONFIG_CFS_BANDWIDTH */
 #endif /* CONFIG_FAIR_GROUP_SCHED */
+
+	/* EEVDF fields — appended at end to preserve KMI/ABI layout */
+	s64			avg_vruntime;
+	long			avg_load;
 };
 
 static inline int rt_bandwidth_enabled(void)

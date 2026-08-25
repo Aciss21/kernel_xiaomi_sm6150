@@ -531,6 +531,12 @@ struct sched_entity {
 	 */
 	struct sched_avg		avg;
 #endif
+
+	/* EEVDF fields, appended to preserve the vendor layout above. */
+	u64				deadline;
+	u64				min_deadline;
+	s64				vlag;
+	u64				slice;
 };
 
 struct sched_load {
