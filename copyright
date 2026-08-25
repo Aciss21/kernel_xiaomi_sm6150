@@ -27,8 +27,8 @@ fi
 
 # ── Build Config ─────────────────────────────────────────────────
 DEVICE="courbet"
-KNAME="Paranoid-BKA"
-VAR="KSU"
+KNAME="Evagelion"
+VAR="01"
 
 ZIPNAME="${KNAME}-${VAR}.zip"
 
