@@ -19,9 +19,6 @@
  *
  *  Adaptive scheduling granularity, math enhancements by Peter Zijlstra
  *  Copyright (C) 2007 Red Hat, Inc., Peter Zijlstra
- *
- *  Burst-Oriented Response Enhancer (BORE) CPU Scheduler
- *  Copyright (C) 2021-2024 Masahito Suzuki <firelzrd@gmail.com>
  */
 
 #include <linux/sched/mm.h>
@@ -488,6 +485,15 @@ static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 	return cfs_rq->rq;
 }
 
+/* An entity is a task if it doesn't "own" a runqueue */
+#define entity_is_task(se)	(!se->my_q)
+
+static inline struct task_struct *task_of(struct sched_entity *se)
+{
+	SCHED_WARN_ON(!entity_is_task(se));
+	return container_of(se, struct task_struct, se);
+}
+
 /* Walk up scheduling entities hierarchy */
 #define for_each_sched_entity(se) \
 		for (; se; se = se->parent)
@@ -632,10 +638,17 @@ find_matching_se(struct sched_entity **se, struct sched_entity **pse)
 
 #else	/* !CONFIG_FAIR_GROUP_SCHED */
 
+static inline struct task_struct *task_of(struct sched_entity *se)
+{
+	return container_of(se, struct task_struct, se);
+}
+
 static inline struct rq *rq_of(struct cfs_rq *cfs_rq)
 {
 	return container_of(cfs_rq, struct rq, cfs);
 }
+
+#define entity_is_task(se)	1
 
 #define for_each_sched_entity(se) \
 		for (; se; se = NULL)
@@ -848,6 +861,7 @@ static inline u64 calc_delta_fair(u64 delta, struct sched_entity *se)
 {
 	if (unlikely(se->load.weight != NICE_0_LOAD))
 		delta = __calc_delta(delta, NICE_0_LOAD, &se->load);
+
 	return delta;
 }
 
@@ -1045,13 +1059,7 @@ static void update_curr(struct cfs_rq *cfs_rq)
 	curr->sum_exec_runtime += delta_exec;
 	schedstat_add(cfs_rq->exec_clock, delta_exec);
 
-#ifdef CONFIG_SCHED_BORE
-	curr->burst_time += delta_exec;
-	update_burst_penalty(curr);
-	curr->vruntime += max(1ULL, calc_delta_fair(delta_exec, curr));
-#else // !CONFIG_SCHED_BORE
 	curr->vruntime += calc_delta_fair(delta_exec, curr);
-#endif // CONFIG_SCHED_BORE
 	update_min_vruntime(cfs_rq);
 
 	if (entity_is_task(curr)) {
@@ -9071,33 +9079,24 @@ static void yield_task_fair(struct rq *rq)
 	/*
 	 * Are we the only task in the tree?
 	 */
-	#if !defined(CONFIG_SCHED_BORE)
 	if (unlikely(rq->nr_running == 1))
 		return;
 
 	clear_buddies(cfs_rq, se);
-	#endif // CONFIG_SCHED_BORE
 
-	update_rq_clock(rq);
-	/*
-	* Update run-time statistics of the 'current'.
-	*/
-	update_curr(cfs_rq);
-
-	#ifdef CONFIG_SCHED_BORE
-		restart_burst(se);
-		if (unlikely(rq->nr_running == 1))
-			return;
-
-		clear_buddies(cfs_rq, se);
-	#endif // CONFIG_SCHED_BORE
-
-	/*
-	 * Tell update_rq_clock() that we've just updated,
-	 * so we don't do microscopic update in schedule()
-	 * and double the fastpath cost.
-	 */
-	rq_clock_skip_update(rq, true);
+	if (curr->policy != SCHED_BATCH) {
+		update_rq_clock(rq);
+		/*
+		 * Update run-time statistics of the 'current'.
+		 */
+		update_curr(cfs_rq);
+		/*
+		 * Tell update_rq_clock() that we've just updated,
+		 * so we don't do microscopic update in schedule()
+		 * and double the fastpath cost.
+		 */
+		rq_clock_skip_update(rq, true);
+	}
 
 	set_skip_buddy(se);
 }
@@ -12490,9 +12489,6 @@ static void task_fork_fair(struct task_struct *p)
 		update_curr(cfs_rq);
 		se->vruntime = curr->vruntime;
 	}
-#ifdef CONFIG_SCHED_BORE
-	update_burst_score(se);
-#endif // CONFIG_SCHED_BORE
 	place_entity(cfs_rq, se, 1);
 
 	if (sysctl_sched_child_runs_first && curr && entity_before(curr, se)) {
