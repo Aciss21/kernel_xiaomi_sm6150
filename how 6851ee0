@@ -1,0 +1,289 @@
+[33mcommit 43e331dda6d3dbab0389d7e1838b6d7513c67f77[m
+Author: Jens Reidel <adrian@travitia.xyz>
+Date:   Fri Apr 1 11:20:17 2022 +0200
+
+    scripts: Update mkdtboimg from AOSP upstream
+    
+    Change-Id: Ibb404d0858e306b9cab852b3e6b78ab260529670
+    Signed-off-by: Aris Wibowo <6703134+arswb@users.noreply.github.com>
+    Signed-off-by: manipvlator <mr.morat14@gmail.com>
+
+[1mdiff --git a/scripts/dtc/mkdtboimg.py b/scripts/dtc/mkdtboimg.py[m
+[1mindex 1ad9aea19d5c..a9cfd2252ff9 100644[m
+[1m--- a/scripts/dtc/mkdtboimg.py[m
+[1m+++ b/scripts/dtc/mkdtboimg.py[m
+[36m@@ -17,12 +17,13 @@[m
+ """Tool for packing multiple DTB/DTBO files into a single image"""[m
+ [m
+ import argparse[m
+[32m+[m[32mimport fnmatch[m
+ import os[m
+[32m+[m[32mimport struct[m
+[32m+[m[32mimport zlib[m
+ from array import array[m
+ from collections import namedtuple[m
+[31m-import struct[m
+ from sys import stdout[m
+[31m-import zlib[m
+ [m
+ class CompressionFormat:[m
+     """Enum representing DT compression format for a DT entry.[m
+[36m@@ -35,14 +36,18 @@[m [mclass DtEntry:[m
+     """Provides individual DT image file arguments to be added to a DTBO.[m
+ [m
+     Attributes:[m
+[31m-        _REQUIRED_KEYS: 'keys' needed to be present in the dictionary passed to instantiate[m
+[31m-            an object of this class.[m
+[31m-        _COMPRESSION_FORMAT_MASK: Mask to retrieve compression info for DT entry from flags field[m
+[32m+[m[32m        REQUIRED_KEYS_V0: 'keys' needed to be present in the dictionary passed to instantiate[m
+[32m+[m[32m            an object of this class when a DTBO header of version 0 is used.[m
+[32m+[m[32m        REQUIRED_KEYS_V1: 'keys' needed to be present in the dictionary passed to instantiate[m
+[32m+[m[32m            an object of this class when a DTBO header of version 1 is used.[m
+[32m+[m[32m        COMPRESSION_FORMAT_MASK: Mask to retrieve compression info for DT entry from flags field[m
+             when a DTBO header of version 1 is used.[m
+     """[m
+[31m-    _COMPRESSION_FORMAT_MASK = 0x0f[m
+[31m-    REQUIRED_KEYS = ('dt_file', 'dt_size', 'dt_offset', 'id', 'rev', 'flags',[m
+[31m-                     'custom0', 'custom1', 'custom2')[m
+[32m+[m[32m    COMPRESSION_FORMAT_MASK = 0x0f[m
+[32m+[m[32m    REQUIRED_KEYS_V0 = ('dt_file', 'dt_size', 'dt_offset', 'id', 'rev',[m
+[32m+[m[32m                     'custom0', 'custom1', 'custom2', 'custom3')[m
+[32m+[m[32m    REQUIRED_KEYS_V1 = ('dt_file', 'dt_size', 'dt_offset', 'id', 'rev',[m
+[32m+[m[32m                     'flags', 'custom0', 'custom1', 'custom2')[m
+ [m
+     @staticmethod[m
+     def __get_number_or_prop(arg):[m
+[36m@@ -81,7 +86,14 @@[m [mclass DtEntry:[m
+                 the tuple (_REQUIRED_KEYS)[m
+         """[m
+ [m
+[31m-        missing_keys = set(self.REQUIRED_KEYS) - set(kwargs)[m
+[32m+[m[32m        self.__version = kwargs['version'][m
+[32m+[m[32m        required_keys = None[m
+[32m+[m[32m        if self.__version == 0:[m
+[32m+[m[32m            required_keys = self.REQUIRED_KEYS_V0[m
+[32m+[m[32m        elif self.__version == 1:[m
+[32m+[m[32m            required_keys = self.REQUIRED_KEYS_V1[m
+[32m+[m
+[32m+[m[32m        missing_keys = set(required_keys) - set(kwargs)[m
+         if missing_keys:[m
+             raise ValueError('Missing keys in DtEntry constructor: %r' %[m
+                              sorted(missing_keys))[m
+[36m@@ -91,10 +103,13 @@[m [mclass DtEntry:[m
+         self.__dt_size = kwargs['dt_size'][m
+         self.__id = self.__get_number_or_prop(kwargs['id'])[m
+         self.__rev = self.__get_number_or_prop(kwargs['rev'])[m
+[31m-        self.__flags = self.__get_number_or_prop(kwargs['flags'])[m
+[32m+[m[32m        if self.__version == 1:[m
+[32m+[m[32m            self.__flags = self.__get_number_or_prop(kwargs['flags'])[m
+         self.__custom0 = self.__get_number_or_prop(kwargs['custom0'])[m
+         self.__custom1 = self.__get_number_or_prop(kwargs['custom1'])[m
+         self.__custom2 = self.__get_number_or_prop(kwargs['custom2'])[m
+[32m+[m[32m        if self.__version == 0:[m
+[32m+[m[32m            self.__custom3 = self.__get_number_or_prop(kwargs['custom3'])[m
+ [m
+     def __str__(self):[m
+         sb = [][m
+[36m@@ -106,26 +121,30 @@[m [mclass DtEntry:[m
+                                                    value=self.__id))[m
+         sb.append('{key:>20} = {value:08x}'.format(key='rev',[m
+                                                    value=self.__rev))[m
+[32m+[m[32m        if self.__version == 1:[m
+[32m+[m[32m            sb.append('{key:>20} = {value:08x}'.format(key='flags',[m
+[32m+[m[32m                                                       value=self.__flags))[m
+         sb.append('{key:>20} = {value:08x}'.format(key='custom[0]',[m
+[31m-                                                   value=self.__flags))[m
+[31m-        sb.append('{key:>20} = {value:08x}'.format(key='custom[1]',[m
+                                                    value=self.__custom0))[m
+[31m-        sb.append('{key:>20} = {value:08x}'.format(key='custom[2]',[m
+[32m+[m[32m        sb.append('{key:>20} = {value:08x}'.format(key='custom[1]',[m
+                                                    value=self.__custom1))[m
+[31m-        sb.append('{key:>20} = {value:08x}'.format(key='custom[3]',[m
+[32m+[m[32m        sb.append('{key:>20} = {value:08x}'.format(key='custom[2]',[m
+                                                    value=self.__custom2))[m
+[32m+[m[32m        if self.__version == 0:[m
+[32m+[m[32m            sb.append('{key:>20} = {value:08x}'.format(key='custom[3]',[m
+[32m+[m[32m                                                       value=self.__custom3))[m
+         return '\n'.join(sb)[m
+ [m
+[31m-    def compression_info(self, version):[m
+[32m+[m[32m    def compression_info(self):[m
+         """CompressionFormat: compression format for DT image file.[m
+ [m
+            Args:[m
+                 version: Version of DTBO header, compression is only[m
+                          supported from version 1.[m
+         """[m
+[31m-        if version == 0:[m
+[32m+[m[32m        if self.__version == 0:[m
+             return CompressionFormat.NO_COMPRESSION[m
+[31m-        return self.flags & self._COMPRESSION_FORMAT_MASK[m
+[32m+[m[32m        return self.flags & self.COMPRESSION_FORMAT_MASK[m
+ [m
+     @property[m
+     def dt_file(self):[m
+[36m@@ -180,6 +199,10 @@[m [mclass DtEntry:[m
+         """int: DT entry custom2 for this DT image."""[m
+         return self.__custom2[m
+ [m
+[32m+[m[32m    @property[m
+[32m+[m[32m    def custom3(self):[m
+[32m+[m[32m        """int: DT entry custom3 for this DT image."""[m
+[32m+[m[32m        return self.__custom3[m
+ [m
+ class Dtbo:[m
+     """[m
+[36m@@ -231,10 +254,17 @@[m [mclass Dtbo:[m
+             dtbo_offset: Offset where the DT image file for this dt_entry can[m
+                 be found in the resulting DTBO image.[m
+         """[m
+[31m-        struct.pack_into('>8I', self.__metadata, metadata_offset, dt_entry.size,[m
+[31m-                         dt_entry.dt_offset, dt_entry.image_id, dt_entry.rev,[m
+[31m-                         dt_entry.flags, dt_entry.custom0, dt_entry.custom1,[m
+[31m-                         dt_entry.custom2)[m
+[32m+[m[32m        if self.version == 0:[m
+[32m+[m[32m            struct.pack_into('>8I', self.__metadata, metadata_offset, dt_entry.size,[m
+[32m+[m[32m                             dt_entry.dt_offset, dt_entry.image_id, dt_entry.rev,[m
+[32m+[m[32m                             dt_entry.custom0, dt_entry.custom1, dt_entry.custom2,[m
+[32m+[m[32m                             dt_entry.custom3)[m
+[32m+[m[32m        elif self.version == 1:[m
+[32m+[m[32m            struct.pack_into('>8I', self.__metadata, metadata_offset, dt_entry.size,[m
+[32m+[m[32m                             dt_entry.dt_offset, dt_entry.image_id, dt_entry.rev,[m
+[32m+[m[32m                             dt_entry.flags, dt_entry.custom0, dt_entry.custom1,[m
+[32m+[m[32m                             dt_entry.custom2)[m
+[32m+[m
+ [m
+     def _update_metadata(self):[m
+         """Updates the DTBO metadata.[m
+[36m@@ -289,15 +319,21 @@[m [mclass Dtbo:[m
+         if self.__dt_entries:[m
+             raise ValueError('DTBO DT entries can be added only once')[m
+ [m
+[31m-        offset = self.dt_entries_offset / 4[m
+[32m+[m[32m        offset = self.dt_entries_offset // 4[m
+         params = {}[m
+[32m+[m[32m        params['version'] = self.version[m
+         params['dt_file'] = None[m
+         for i in range(0, self.dt_entry_count):[m
+             dt_table_entry = self.__metadata[offset:offset + self._DT_ENTRY_HEADER_INTS][m
+             params['dt_size'] = dt_table_entry[0][m
+             params['dt_offset'] = dt_table_entry[1][m
+             for j in range(2, self._DT_ENTRY_HEADER_INTS):[m
+[31m-                params[DtEntry.REQUIRED_KEYS[j + 1]] = str(dt_table_entry[j])[m
+[32m+[m[32m                required_keys = None[m
+[32m+[m[32m                if self.version == 0:[m
+[32m+[m[32m                    required_keys = DtEntry.REQUIRED_KEYS_V0[m
+[32m+[m[32m                elif self.version == 1:[m
+[32m+[m[32m                    required_keys = DtEntry.REQUIRED_KEYS_V1[m
+[32m+[m[32m                params[required_keys[j + 1]] = str(dt_table_entry[j])[m
+             dt_entry = DtEntry(**params)[m
+             self.__dt_entries.append(dt_entry)[m
+             offset += self._DT_ENTRY_HEADER_INTS[m
+[36m@@ -469,9 +505,8 @@[m [mclass Dtbo:[m
+             if not isinstance(dt_entry, DtEntry):[m
+                 raise ValueError('Adding invalid DT entry object to DTBO')[m
+             entry = self._find_dt_entry_with_same_file(dt_entry)[m
+[31m-            dt_entry_compression_info = dt_entry.compression_info(self.version)[m
+[31m-            if entry and (entry.compression_info(self.version)[m
+[31m-                          == dt_entry_compression_info):[m
+[32m+[m[32m            dt_entry_compression_info = dt_entry.compression_info()[m
+[32m+[m[32m            if entry and (entry.compression_info() == dt_entry_compression_info):[m
+                 dt_entry.dt_offset = entry.dt_offset[m
+                 dt_entry.size = entry.size[m
+             else:[m
+[36m@@ -509,7 +544,7 @@[m [mclass Dtbo:[m
+         offset = self.dt_entries[idx].dt_offset[m
+         self.__file.seek(offset, 0)[m
+         fout.seek(0)[m
+[31m-        compression_format = self.dt_entries[idx].compression_info(self.version)[m
+[32m+[m[32m        compression_format = self.dt_entries[idx].compression_info()[m
+         if decompress and compression_format:[m
+             if (compression_format == CompressionFormat.ZLIB_COMPRESSION or[m
+                 compression_format == CompressionFormat.GZIP_COMPRESSION):[m
+[36m@@ -579,6 +614,9 @@[m [mdef parse_dt_entry(global_args, arglist):[m
+     parser.add_argument('--custom2', type=str, dest='custom2',[m
+                         action='store',[m
+                         default=global_args.global_custom2)[m
+[32m+[m[32m    parser.add_argument('--custom3', type=str, dest='custom3',[m
+[32m+[m[32m                        action='store',[m
+[32m+[m[32m                        default=global_args.global_custom3)[m
+     return parser.parse_args(arglist)[m
+ [m
+ [m
+[36m@@ -620,6 +658,7 @@[m [mdef parse_dt_entries(global_args, arg_list):[m
+             argv = arg_list[start_idx:end_idx][m
+         args = parse_dt_entry(global_args, argv)[m
+         params = vars(args)[m
+[32m+[m[32m        params['version'] = global_args.version[m
+         params['dt_offset'] = 0[m
+         params['dt_size'] = os.fstat(params['dt_file'].fileno()).st_size[m
+         dt_entries.append(DtEntry(**params))[m
+[36m@@ -752,6 +791,8 @@[m [mdef parse_create_args(arg_list):[m
+                         action='store', default='0')[m
+     parser.add_argument('--custom2', type=str, dest='global_custom2',[m
+                         action='store', default='0')[m
+[32m+[m[32m    parser.add_argument('--custom3', type=str, dest='global_custom3',[m
+[32m+[m[32m                        action='store', default='0')[m
+     args = parser.parse_args(argv)[m
+     return args, remainder[m
+ [m
+[36m@@ -768,7 +809,7 @@[m [mdef parse_dump_cmd_args(arglist):[m
+ [m
+     parser = argparse.ArgumentParser(prog='dump')[m
+     parser.add_argument('--output', '-o', nargs='?',[m
+[31m-                        type=argparse.FileType('wb'),[m
+[32m+[m[32m                        type=argparse.FileType('w'),[m
+                         dest='outfile',[m
+                         default=stdout)[m
+     parser.add_argument('--dtb', '-b', nargs='?', type=str,[m
+[36m@@ -788,7 +829,7 @@[m [mdef parse_config_create_cmd_args(arglist):[m
+     """[m
+     parser = argparse.ArgumentParser(prog='cfg_create')[m
+     parser.add_argument('conf_file', nargs='?',[m
+[31m-                        type=argparse.FileType('rb'),[m
+[32m+[m[32m                        type=argparse.FileType('r'),[m
+                         default=None)[m
+     cwd = os.getcwd()[m
+     parser.add_argument('--dtb-dir', '-d', nargs='?', type=str,[m
+[36m@@ -844,15 +885,22 @@[m [mdef create_dtbo_image_from_config(fout, argv):[m
+     if not args.conf_file:[m
+         raise ValueError('Configuration file must be provided')[m
+ [m
+[31m-    _DT_KEYS = ('id', 'rev', 'flags', 'custom0', 'custom1', 'custom2')[m
+[32m+[m[32m    _DT_KEYS = ('id', 'rev', 'flags', 'custom0', 'custom1', 'custom2', 'custom3')[m
+     _GLOBAL_KEY_TYPES = {'dt_type': str, 'page_size': int, 'version': int}[m
+ [m
+     global_args, dt_args = parse_config_file(args.conf_file,[m
+                                              _DT_KEYS, _GLOBAL_KEY_TYPES)[m
+[32m+[m[32m    version = global_args['version'][m
+[32m+[m
+     params = {}[m
+[32m+[m[32m    params['version'] = version[m
+     dt_entries = [][m
+     for dt_arg in dt_args:[m
+[31m-        filepath = args.dtbdir + os.sep + dt_arg['filename'][m
+[32m+[m[32m        filepath = dt_arg['filename'][m
+[32m+[m[32m        if not os.path.isabs(filepath):[m
+[32m+[m[32m            for root, dirnames, filenames in os.walk(args.dtbdir):[m
+[32m+[m[32m                for filename in fnmatch.filter(filenames, os.path.basename(filepath)):[m
+[32m+[m[32m                    filepath = os.path.join(root, filename)[m
+         params['dt_file'] = open(filepath, 'rb')[m
+         params['dt_offset'] = 0[m
+         params['dt_size'] = os.fstat(params['dt_file'].fileno()).st_size[m
+[36m@@ -864,7 +912,7 @@[m [mdef create_dtbo_image_from_config(fout, argv):[m
+         dt_entries.append(DtEntry(**params))[m
+ [m
+     # Create and write DTBO file[m
+[31m-    dtbo = Dtbo(fout, global_args['dt_type'], global_args['page_size'], global_args['version'])[m
+[32m+[m[32m    dtbo = Dtbo(fout, global_args['dt_type'], global_args['page_size'], version)[m
+     dt_entry_buf = dtbo.add_dt_entries(dt_entries)[m
+     dtbo.commit(dt_entry_buf)[m
+     fout.close()[m
+[36m@@ -915,6 +963,7 @@[m [mdef print_create_usage(progname):[m
+     sb.append('      --custom0=<number>')[m
+     sb.append('      --custom1=<number>')[m
+     sb.append('      --custom2=<number>\n')[m
+[32m+[m[32m    sb.append('      --custom3=<number>\n')[m
+ [m
+     sb.append('      The value could be a number or a DT node path.')[m
+     sb.append('      <number> could be a 32-bits digit or hex value, ex. 68000, 0x6800.')[m
