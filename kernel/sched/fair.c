@@ -23,7 +23,6 @@
 
 #include <linux/sched/mm.h>
 #include <linux/sched/topology.h>
-#include <linux/prefetch.h>
 
 #include <linux/latencytop.h>
 #include <linux/cpumask.h>
@@ -891,7 +890,7 @@ static u64 sched_vslice(struct cfs_rq *cfs_rq, struct sched_entity *se)
 
 #include "sched-pelt.h"
 
-static int select_idle_sibling(struct task_struct *p, int prev_cpu, int cpu, int sync);
+static int select_idle_sibling(struct task_struct *p, int prev_cpu, int cpu);
 static unsigned long task_h_load(struct task_struct *p);
 static unsigned long capacity_of(int cpu);
 
@@ -1871,7 +1870,7 @@ balance:
 		 */
 		local_irq_disable();
 		env->dst_cpu = select_idle_sibling(env->p, env->src_cpu,
-						   env->dst_cpu, 0);
+						   env->dst_cpu);
 		local_irq_enable();
 	}
 
@@ -7372,19 +7371,6 @@ static int select_idle_cpu(struct task_struct *p, struct sched_domain *sd, int t
 	return cpu;
 }
 
-#ifdef CONFIG_SCHED_POC_SELECTOR
-/*
- * Piece-Of-Cake (POC) CPU Selector
- *
- * Fast idle CPU selector supporting up to 64 CPUs per LLC, using atomic64
- * bitmaps for O(1) idle CPU lookup.  See poc_selector.c for details.
- *
- * Included (not linked as a separate object) to match upstream layout and
- * keep the hot select_idle_cpu_poc() inlinable into select_idle_sibling().
- */
-#include "poc_selector.c"
-#endif /* CONFIG_SCHED_POC_SELECTOR */
-
 /*
  * Try and locate an idle core/thread in the LLC cache domain.
  */
@@ -7490,69 +7476,12 @@ static inline int select_idle_sibling_cstate_aware(struct task_struct *p, int pr
 	return target;
 }
 
-static int select_idle_sibling(struct task_struct *p, int prev, int target, int sync)
+static int select_idle_sibling(struct task_struct *p, int prev, int target)
 {
-	struct sched_domain *sd;
-
-	sd = rcu_dereference(per_cpu(sd_llc, target));
-	if (!sd)
-		return target;
-
-#ifdef CONFIG_SCHED_POC_SELECTOR
-	{
-		struct sched_domain_shared *sd_share =
-			rcu_dereference(per_cpu(sd_llc_shared, target));
-
-		if (static_branch_likely(&poc_selector_active)
-				&& !sched_asym_cpucap_active()
-				&& sd_share && likely(sd_share->poc_fast_eligible)) {
-			int poc_cpu = select_idle_cpu_poc(target, prev,
-					-1, sync,
-					sd_share, &p->cpus_allowed);
-			if (poc_cpu >= 0)
-				return poc_cpu;
-			/*
-			 * POC returns -2 when the SIS_UTIL overload gate fires
-			 * (smt_fallback=0 only). POC has already checked
-			 * prev's SMT sibling (Level 4) and decided broader
-			 * search is not worthwhile. CFS would reach the same
-			 * conclusion, so skip select_idle_smt/select_idle_cpu.
-			 *
-			 * POC returns -1 for Level 0 saturation (no idle CPUs
-			 * in bitmap), but CFS may still find sched_idle CPUs,
-			 * so we must NOT skip CFS in that case.
-			 */
-			if (poc_cpu == -2)
-				goto give_up;
-		} else {
-			/*
-			 * poc_selector_active is off - POC is either disabled
-			 * by sysctl or suppressed while scx is running.
-			 * If an scx scheduler called us, flip poc_selector_skip
-			 * and schedule a workqueue item to re-enable POC with
-			 * bitmap resync.
-			 */
-			poc_check_skip_fallback();
-		}
-	}
-	poc_count(POC_FALLBACK);
-#endif /* CONFIG_SCHED_POC_SELECTOR */
-
 	if (!sysctl_sched_cstate_aware)
 		return __select_idle_sibling(p, prev, target);
 
 	return select_idle_sibling_cstate_aware(p, prev, target);
-#ifdef CONFIG_SCHED_POC_SELECTOR
-give_up:
-	/*
-	 * Last resort: avoid enqueuing behind RT/DL tasks on target
-	 */
-	if (static_branch_likely(&poc_selector_active) &&
-	    rt_task(cpu_rq(target)->curr) &&
-	    prev != target && !rt_task(cpu_rq(prev)->curr))
-		return prev;
-	return target;
-#endif
 }
 
 static inline bool task_fits_capacity(struct task_struct *p,
@@ -8683,7 +8612,7 @@ select_task_rq_fair(struct task_struct *p, int prev_cpu, int sd_flag, int wake_f
 	if (!sd) {
 pick_cpu:
 		if (sd_flag & SD_BALANCE_WAKE) /* XXX always ? */
-			new_cpu = select_idle_sibling(p, prev_cpu, new_cpu, sync);
+			new_cpu = select_idle_sibling(p, prev_cpu, new_cpu);
 
 	} else {
 		if (energy_sd) {
