@@ -186,10 +186,6 @@ uint __read_mostly sched_burst_cache_lifetime   = 60000000;
 
 #define MAX_BURST_PENALTY (39U <<2)
 
-static void reweight_entity(struct cfs_rq *cfs_rq,
-				struct sched_entity *se, unsigned long weight);
-static void reweight_task_by_prio(struct task_struct *p, int prio);
-
 static inline u32 log2plus1_u64_u32f8(u64 v) {
 	u32 msb = fls64(v);
 	s32 excess_bits = msb - 9;
@@ -213,20 +209,16 @@ static inline u64 scale_slice(u64 delta, struct sched_entity *se) {
 }
 
 static void update_burst_score(struct sched_entity *se) {
-	struct task_struct *p;
-	u8 prio, prev_prio, new_prio;
-
-	if (!entity_is_task(se))
-		return;
-	p = task_of(se);
-	prio = p->static_prio - MAX_RT_PRIO;
-	prev_prio = min(39, prio + se->burst_score);
+	if (!entity_is_task(se)) return;
+	struct task_struct *p = task_of(se);
+	u8 prio = p->static_prio - MAX_RT_PRIO;
+	u8 prev_prio = min(39, prio + se->burst_score);
 
 	se->burst_score = se->burst_penalty >> 2;
 
-	new_prio = min(39, prio + se->burst_score);
+	u8 new_prio = min(39, prio + se->burst_score);
 	if (new_prio != prev_prio)
-		reweight_task_by_prio(p, new_prio);
+	 	reweight_task(p, new_prio);
 }
 
 static void update_burst_penalty(struct sched_entity *se) {
@@ -2909,33 +2901,6 @@ account_entity_dequeue(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	cfs_rq->nr_running--;
 }
 
-static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
-			    unsigned long weight)
-{
-	if (se->on_rq) {
-		if (cfs_rq->curr == se)
-			update_curr(cfs_rq);
-		account_entity_dequeue(cfs_rq, se);
-	}
-
-	update_load_set(&se->load, weight);
-
-	if (se->on_rq)
-		account_entity_enqueue(cfs_rq, se);
-}
-
-#ifdef CONFIG_SCHED_BORE
-static void reweight_task_by_prio(struct task_struct *p, int prio)
-{
-	struct sched_entity *se = &p->se;
-	struct cfs_rq *cfs_rq = cfs_rq_of(se);
-	unsigned long weight = scale_load(sched_prio_to_weight[prio]);
-
-	reweight_entity(cfs_rq, se, weight);
-	se->load.inv_weight = sched_prio_to_wmult[prio];
-}
-#endif
-
 #ifdef CONFIG_FAIR_GROUP_SCHED
 # ifdef CONFIG_SMP
 static long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
@@ -2984,6 +2949,22 @@ static inline long calc_cfs_shares(struct cfs_rq *cfs_rq, struct task_group *tg)
 	return tg->shares;
 }
 # endif /* CONFIG_SMP */
+
+static void reweight_entity(struct cfs_rq *cfs_rq, struct sched_entity *se,
+			    unsigned long weight)
+{
+	if (se->on_rq) {
+		/* commit outstanding execution time */
+		if (cfs_rq->curr == se)
+			update_curr(cfs_rq);
+		account_entity_dequeue(cfs_rq, se);
+	}
+
+	update_load_set(&se->load, weight);
+
+	if (se->on_rq)
+		account_entity_enqueue(cfs_rq, se);
+}
 
 static inline int throttled_hierarchy(struct cfs_rq *cfs_rq);
 
@@ -5424,9 +5405,6 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
 	int task_new = !(flags & ENQUEUE_WAKEUP);
-#ifdef CONFIG_SCHED_BORE
-	int task_sleep = flags & DEQUEUE_SLEEP;
-#endif
 	bool prefer_idle = sched_feat(EAS_PREFER_IDLE) ?
 				(schedtune_prefer_idle(p) > 0) : 0;
 
@@ -5468,6 +5446,8 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 		cpufreq_update_util(rq, SCHED_CPUFREQ_IOWAIT);
 
 #ifdef CONFIG_SCHED_BORE
+	int task_sleep = flags & DEQUEUE_SLEEP;
+	
 	if (task_sleep) {
 		cfs_rq = cfs_rq_of(se);
 		if (cfs_rq->curr == se)
