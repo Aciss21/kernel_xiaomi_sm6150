@@ -229,6 +229,8 @@ exit_idle:
  */
 static void do_idle(void)
 {
+	int cpu = smp_processor_id();
+
 	/*
 	 * If the arch has a polling bit, we maintain an invariant:
 	 *
@@ -241,6 +243,7 @@ static void do_idle(void)
 	__current_set_polling();
 	quiet_vmstat();
 	tick_nohz_idle_enter();
+	set_cpu_idle_state_poc(cpu, 1);
 
 	while (!need_resched()) {
 		check_pgt_cache();
@@ -269,6 +272,7 @@ static void do_idle(void)
 		}
 		arch_cpu_idle_exit();
 	}
+	set_cpu_idle_state_poc(cpu, 0);
 
 	/*
 	 * Since we fell out of the loop above, we know TIF_NEED_RESCHED must

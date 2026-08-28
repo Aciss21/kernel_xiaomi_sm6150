@@ -1379,8 +1379,195 @@ sd_init(struct sched_domain_topology_level *tl,
 	sd->shared = *per_cpu_ptr(sdd->sds, sd_id);
 	atomic_inc(&sd->shared->ref);
 
-	if (sd->flags & SD_SHARE_PKG_RESOURCES)
+	if (sd->flags & SD_SHARE_PKG_RESOURCES) {
 		atomic_set(&sd->shared->nr_busy_cpus, sd_weight);
+
+#ifdef CONFIG_SCHED_POC_SELECTOR
+		{
+			int range;
+			int cpu_iter;
+
+			sd->shared->poc_cpu_base = sd_id;
+			sd->shared->poc_affinity_shift = sd_id & 63;
+
+			range = 0;
+			for_each_cpu(cpu_iter, sched_domain_span(sd)) {
+				int bit = cpu_iter - sd_id;
+
+				if (bit >= range)
+					range = bit;
+			}
+			range += 1;
+
+		if (range <= 64) {
+			sd->shared->poc_fast_eligible = true;
+			/*
+			 * Disable aligned optimization if this LLC's base CPU
+			 * is not 64-aligned (e.g., Threadripper CCDs).
+			 */
+			if (sd_id & 63)
+				static_branch_disable_cpuslocked(&sched_poc_aligned);
+			/*
+			 * Disable packed priority search if this LLC
+			 * has more than 32 CPUs.
+			 */
+			if (range > 32)
+				static_branch_disable_cpuslocked(&sched_poc_packed);
+		} else {
+			sd->shared->poc_fast_eligible = false;
+			static_branch_disable_cpuslocked(&sched_poc_packed);
+		}
+		/*
+		 * POC overload gate: nr_idle_scan == 0 disables Levels 5/6.
+		 * Always set to the LLC span weight here; matches upstream
+		 * SIS_UTIL-off behavior (see kernel/sched/poc_selector.c).
+		 */
+		sd->shared->nr_idle_scan = sd_weight;
+		memset(sd->shared->poc_idle_cpus, 0,
+		       sizeof(sd->shared->poc_idle_cpus));
+		atomic64_set(&sd->shared->poc_idle_cpus_mask, 0);
+#ifdef CONFIG_SCHED_SMT
+		memset(sd->shared->poc_idle_cores, 0,
+		       sizeof(sd->shared->poc_idle_cores));
+		atomic64_set(&sd->shared->poc_idle_cores_mask, 0);
+#endif
+
+		/* Build LLC member bitmask for reader-side aggregation */
+		{
+			u64 members = 0;
+
+			for_each_cpu(cpu_iter, sched_domain_span(sd)) {
+				int bit = cpu_iter - sd_id;
+
+				if ((unsigned int)bit < 64)
+					members |= 1ULL << bit;
+			}
+			sd->shared->poc_llc_members = members;
+		}
+
+#ifdef CONFIG_SCHED_SMT
+		/*
+		 * Pre-compute SMT sibling masks for Level 4.
+		 * Each entry contains a bitmask of SMT siblings (including self)
+		 * for O(1) lookup via CTZ during wakeup.
+		 */
+		memset(sd->shared->poc_smt_mask, 0,
+		       sizeof(sd->shared->poc_smt_mask));
+		if (sd->shared->poc_fast_eligible) {
+
+			for_each_cpu(cpu_iter, sched_domain_span(sd)) {
+				int bit = cpu_iter - sd_id;
+				int sibling;
+				u64 mask = 0;
+
+				for_each_cpu(sibling, cpu_smt_mask(cpu_iter)) {
+					int sib_bit;
+
+					sib_bit = sibling - sd_id;
+					if (sib_bit >= 0 && sib_bit < 64)
+						mask |= 1ULL << sib_bit;
+				}
+				if (bit >= 0 && bit < 64)
+					sd->shared->poc_smt_mask[bit] = mask;
+			}
+		}
+
+		/*
+		 * Detect SMT topology and classify for poc_idle_core_mask():
+		 *
+		 *   Tier 1 (consecutive): uniform 2-way SMT, siblings at
+		 *     consecutive bit positions (e.g., 0,1 / 2,3).
+		 *     Uses compile-time constants: shift=1, mask=0x5555...
+		 *
+		 *   Tier 2 (uniform stride-N): uniform 2-way SMT with
+		 *     constant stride between siblings (e.g., Intel Xeon
+		 *     stride-8: CPU 0,8 / 1,9 / ...).  Uses precomputed
+		 *     poc_smt_shift and poc_primary_mask for read-time
+		 *     derivation without write-path overhead.
+		 *
+		 *   Tier 3 (exotic): >2-way SMT, non-uniform topology,
+		 *     or mixed SMT ways.  Falls back to write-time
+		 *     maintenance of poc_idle_cores_mask atomic64_t.
+		 *
+		 * On pure non-SMT systems, the key values are irrelevant
+		 * because sched_smt_active() gates all SMT paths.
+		 */
+		sd->shared->poc_smt_shift = 1;
+		sd->shared->poc_primary_mask = 0;
+
+		if (sd->shared->poc_fast_eligible) {
+			bool all_2way = true;
+			bool all_consecutive = true;
+			int uniform_stride = -1;
+			u64 primary_mask = 0;
+
+			for_each_cpu(cpu_iter, sched_domain_span(sd)) {
+				int bit = cpu_iter - sd_id;
+
+				if (bit < 0 || bit >= 64)
+					continue;
+				{
+					u64 mask = sd->shared->poc_smt_mask[bit];
+					int ways = hweight64(mask);
+					int lo, hi, stride;
+
+					if (ways != 2) {
+						all_2way = false;
+						all_consecutive = false;
+						break;
+					}
+
+					lo = __ffs(mask);
+					hi = __fls(mask);
+					stride = hi - lo;
+
+					/* Track primary (lowest-numbered sibling) */
+					primary_mask |= 1ULL << lo;
+
+					/* Check consecutive: 0b11 at even position */
+					if ((lo & 1) || mask != (3ULL << lo))
+						all_consecutive = false;
+
+					/* Check uniform stride */
+					if (uniform_stride < 0)
+						uniform_stride = stride;
+					else if (stride != uniform_stride)
+						all_2way = false;
+				}
+			}
+
+			if (!all_consecutive)
+				static_branch_disable_cpuslocked(
+					&sched_poc_smt_consecutive);
+
+			if (all_2way && uniform_stride > 0) {
+				sd->shared->poc_smt_shift =
+					(u8)uniform_stride;
+				sd->shared->poc_primary_mask = primary_mask;
+			} else {
+				static_branch_disable_cpuslocked(
+					&sched_poc_smt_consecutive);
+				static_branch_disable_cpuslocked(
+					&sched_poc_smt_uniform);
+			}
+		}
+#endif /* CONFIG_SCHED_SMT */
+
+		memset(sd->shared->poc_cluster_mask, 0,
+		       sizeof(sd->shared->poc_cluster_mask));
+
+		sd->shared->poc_cluster_valid = false;
+
+#ifdef CONFIG_SCHED_CLUSTER
+			/*
+			 * Cluster (L2-sharing) fast path is not present on this
+			 * kernel (no CONFIG_SCHED_CLUSTER / cpu_clustergroup_mask);
+			 * sched_cluster_active() stays false so Levels 2/5 are inert.
+			 */
+#endif /* CONFIG_SCHED_CLUSTER */
+		}
+#endif /* CONFIG_SCHED_POC_SELECTOR */
+	}
 
 	sd->private = sdd;
 
