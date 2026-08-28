@@ -42,7 +42,7 @@ ANYKERNEL_BRANCH="master"
 TOOLCHAIN_DIR="$KERNEL_DIR/clang"
 CLANG_DIR="$TOOLCHAIN_DIR"
 
-CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/14.0.6-20260619-release/Clang-14.0.6-20260619.tar.gz"
+CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/17.0.0-20230725-release/Clang-17.0.0-20230725.tar.gz"
 
 # ── Output Paths ─────────────────────────────────────────────────
 OUT="$KERNEL_DIR/out"
