@@ -139,7 +139,17 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDHORIZON
 	  Use the 'schedhorizon' CPUFreq governor by default. If unsure,
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
-	  
+
+config CPU_FREQ_DEFAULT_GOV_NERV
+	bool "NerV"
+	select CPU_FREQ_GOV_NERV
+	select CPU_FREQ_GOV_PERFORMANCE
+	help
+	  Use the CPUFreq governor 'NerV' as default. This allows you to get
+	  a full dynamic frequency capable system by simply loading your
+	  cpufreq low-level hardware driver, using the 'NerV' governor tuned
+	  for multitasking, gaming and daily use.
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
@@ -459,6 +469,25 @@ config CPU_FREQ_GOV_VORPAL
 	  Vorpal CPUFreq Governor v1.0, adapted for Linux 4.14.
 	  Combines interactive hispeed ramp-up with PELT tracking.
 	  Module: cpufreq_vorpal. If in doubt, say M.
+
+config CPU_FREQ_GOV_NERV
+	tristate "'NerV' cpufreq policy governor"
+	depends on CPU_FREQ
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  NerV CPUFreq Governor. A busy-time / idle-time based governor tuned
+	  for multitasking, gaming and daily use.
+
+	  It performs fast hispeed ramp-up for responsiveness, aggregates load
+	  across the policy so busy background cores keep the big cores ready,
+	  and uses asymmetric rate limits that climb fast but taper down slowly
+	  to avoid frequency bounce.
+
+	  To compile this driver as a module, choose M here: the module will be
+	  called cpufreq_nerV.
+
+	  If in doubt, say N.
 
 comment "CPU frequency scaling drivers"
 
