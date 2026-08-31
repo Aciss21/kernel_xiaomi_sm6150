@@ -139,7 +139,16 @@ config CPU_FREQ_DEFAULT_GOV_SCHEDHORIZON
 	  Use the 'schedhorizon' CPUFreq governor by default. If unsure,
 	  have a look at the help section of that governor. The fallback
 	  governor will be 'performance'.
-	  
+
+config CPU_FREQ_DEFAULT_GOV_VORPAL
+        bool "vorpal"
+        select CPU_FREQ_GOV_VORPAL
+        select CPU_FREQ_GOV_SCHEDUTIL
+        help
+          Use the 'vorpal' CPUFreq governor by default. If unsure,
+          have a look at the help section of that governor. The fallback
+          governor will be 'schedutil'.	  
+
 endchoice
 
 config CPU_FREQ_GOV_PERFORMANCE
