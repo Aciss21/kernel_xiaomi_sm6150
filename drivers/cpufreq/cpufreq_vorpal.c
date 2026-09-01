@@ -147,8 +147,8 @@ extern bool rfx_dl_bw_exceeded_gki510(int cpu, unsigned long bwmin);
 #define RFX_D_PRIME_BOOST_CAP_PCT	68
 #define RFX_D_BIG_LIFT_PCT		65
 #define RFX_D_BIG_DROP_PCT		55
-#define RFX_D_BIG_SUSTAINED_CAP_PCT	88
-#define RFX_D_PRIME_SUSTAINED_CAP_PCT	75
+#define RFX_D_BIG_SUSTAINED_CAP_PCT	85
+#define RFX_D_PRIME_SUSTAINED_CAP_PCT	72
 
 /* Cold-start burst floors, clamped to cap. Cover the first ~2ms of an app
  * launch until real demand is visible (200ms window). */
@@ -170,7 +170,7 @@ extern bool rfx_dl_bw_exceeded_gki510(int cpu, unsigned long bwmin);
  * to cut the boost-cap hold under continuous scrolling (daily heat). 220ms
  * held the 80% cap through the whole fling, so passive reels autoplay paid
  * scroll heat; 150ms still clears a tap+fling without pinning the cap. */
-#define RFX_D_UI_BOOST_NS		(150 * NSEC_PER_MSEC)
+#define RFX_D_UI_BOOST_NS		(140 * NSEC_PER_MSEC)
 /* Cold-start boost 200ms: spawn + initial layout + first render. */
 #define RFX_D_COLDSTART_BOOST_NS	(200 * NSEC_PER_MSEC)
 
