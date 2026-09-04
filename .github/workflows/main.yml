@@ -1,0 +1,33 @@
+name: build Stable
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: 🔄 Checkout Code
+      uses: actions/checkout@v4
+      
+    - name: ⏰ Prepare timezone
+      run: |
+        sudo rm /etc/localtime
+        sudo ln -s /usr/share/zoneinfo/Asia/Jakarta /etc/localtime
+        
+    - name: 📦 Install Dependencies
+      run: |
+        sudo apt update -y
+        sudo apt install bc cpio flex bison aptitude git python-is-python3 tar aria2 perl wget curl lz4 libssl-dev -y
+        
+    - name: ⚙️ Setup Environment
+      run: |
+        echo "BUILD_TIME=$(TZ=Asia/Jakarta date '+%d%m%Y-%H%M')" >> $GITHUB_ENV
+        
+    - name: 📅 Set BUILD DATE
+      run: |
+        echo "BUILD_DATE='\"$(TZ=Asia/Jakarta date '+%b %d %Y')\"'" >> $GITHUB_ENV
+      
+    - name: 🛠️ Build Kernel
+      run: |
+        bash copyright
