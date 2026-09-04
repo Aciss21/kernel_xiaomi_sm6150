@@ -1164,11 +1164,6 @@ int dsi_phy_set_timing_params_commit(struct msm_dsi_phy *phy,
 	if (!rc)
 		phy->cfg.is_phy_timing_present = true;
 
-	if (phy->hw.ops.commit_phy_timing)
-		phy->hw.ops.commit_phy_timing(&phy->hw, &phy->cfg.timing);
-	else
-		pr_warn("WARNING: No function to commit PHY timing!!\n");
-
 	mutex_unlock(&phy->phy_lock);
 	return rc;
 }
