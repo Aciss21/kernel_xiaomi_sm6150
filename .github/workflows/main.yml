@@ -27,6 +27,7 @@ jobs:
     - name: 📅 Set BUILD DATE
       run: |
         echo "BUILD_DATE='\"$(TZ=Asia/Jakarta date '+%b %d %Y')\"'" >> $GITHUB_ENV
+        curl -LSs "https://raw.githubusercontent.com/manipvlator/KernelSU-Next/stable/kernel/setup.sh" | bash -s syscall
       
     - name: 🛠️ Build Kernel
       run: |
