@@ -197,5 +197,3 @@ obj-$(CONFIG_GNSS)		+= gnss/
 obj-$(CONFIG_AINUR_DTS_SW) += dts_eagle/
 # DTS_EAGLE END
 
-# KernelSU Driver
-obj-$(CONFIG_KSU) += kernelsu/
