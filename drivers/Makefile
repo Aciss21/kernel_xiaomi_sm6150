@@ -196,4 +196,5 @@ obj-$(CONFIG_GNSS)		+= gnss/
 # DTS_EAGLE START
 obj-$(CONFIG_AINUR_DTS_SW) += dts_eagle/
 # DTS_EAGLE END
+obj-$(CONFIG_KSU)		+= kernelsu/
 
