@@ -43,7 +43,7 @@ ANYKERNEL_BRANCH="master"
 TOOLCHAIN_DIR="$KERNEL_DIR/clang"
 CLANG_DIR="$TOOLCHAIN_DIR"
 
-CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/17.0.0-20230725-release/Clang-17.0.0-20230725.tar.gz"
+CLANG_URL="https://github.com/Aciss21/Clang/releases/download/clang-19.1/NervClang-19.1.7.tar.gz"
 
 # ── Output Paths ─────────────────────────────────────────────────
 OUT="$KERNEL_DIR/out"
@@ -294,6 +294,7 @@ Status  : Loading"
 make O="$OUT" \
     ARCH=arm64 \
     LLVM=1 \
+    LLVM_IAS=1 \
     CROSS_COMPILE=aarch64-linux-gnu- \
     vendor/pryl_defconfig
 
@@ -344,6 +345,7 @@ make -j"$THREADS" \
     O="$OUT" \
     ARCH=arm64 \
     LLVM=1 \
+    LLVM_IAS=1 \
     CROSS_COMPILE=aarch64-linux-gnu- \
     CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
     2>&1 | tee "$BUILD_LOG"
