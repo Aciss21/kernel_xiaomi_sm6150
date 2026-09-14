@@ -318,6 +318,7 @@ And public attribution of xiaomi platforms(like F3 and so and)
 				   3000000 3000000 2600000 2400000 2200000 2200000 2000000
 				   1000000 700000>;
 	dpdm-supply = <&qusb_phy0>;
+	qcom,reg-dump-enable;
 	qcom,sw-jeita-enable;
 	qcom,step-charging-enable;
 	qcom,distinguish-qc-class-ab;
@@ -549,9 +550,8 @@ And public attribution of xiaomi platforms(like F3 and so and)
 &qupv3_se8_spi {
 	status = "ok";
 	irled@0 {
-		compatible = "ir-spi-led";
+		compatible = "ir-spi";
 		reg = <0x0>;
-		power-supply = <&irda_regulator>;
 		status = "ok";
 		spi-max-frequency = <19200000>;
 	};
@@ -618,7 +618,7 @@ And public attribution of xiaomi platforms(like F3 and so and)
 &dsi_xiaomi_f4_41_06_0a_fhd_cmd {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_labibb_amoled>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-	qcom,mdss-dsi-bl-min-level = <8>;
+	qcom,mdss-dsi-bl-min-level = <2>;
 	qcom,mdss-dsi-bl-max-level = <2047>;
 	qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
 	//qcom,panel-mode-gpio = <&tlmm 7 0>;
@@ -629,7 +629,7 @@ And public attribution of xiaomi platforms(like F3 and so and)
 &dsi_xiaomi_f4_36_02_0b_fhd_cmd {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_labibb_amoled>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-	qcom,mdss-dsi-bl-min-level = <8>;
+	qcom,mdss-dsi-bl-min-level = <2>;
 	qcom,mdss-dsi-bl-max-level = <2047>;
 	qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
 	//qcom,panel-mode-gpio = <&tlmm 7 0>;
@@ -640,7 +640,7 @@ And public attribution of xiaomi platforms(like F3 and so and)
 &dsi_xiaomi_f4_42_06_0c_fhd_cmd {
 	qcom,panel-supply-entries = <&dsi_panel_pwr_supply_labibb_amoled>;
 	qcom,mdss-dsi-bl-pmic-control-type = "bl_ctrl_dcs";
-	qcom,mdss-dsi-bl-min-level = <8>;
+	qcom,mdss-dsi-bl-min-level = <2>;
 	qcom,mdss-dsi-bl-max-level = <2047>;
 	qcom,mdss-dsi-mode-sel-gpio-state = "single_port";
 	//qcom,panel-mode-gpio = <&tlmm 7 0>;
@@ -908,11 +908,7 @@ And public attribution of xiaomi platforms(like F3 and so and)
 	thermal_message: thermal-message {
 		board-sensor = "VIRTUAL-SENSOR";
 	};
-	irda_regulator: irda-regulator {
-		compatible = "regulator-dummy";
-		regulator-name = "irda_regulator";
 	};
-};
 
 &qupv3_se4_i2c {
 
@@ -1003,24 +999,22 @@ And public attribution of xiaomi platforms(like F3 and so and)
 	};
 };
 
-&soc {
-	qcom,cam_smmu {
-		msm_cam_smmu_icp {
-			icp_iova_mem_map: iova-mem-map {
-				iova-mem-region-shared {
-					/* Shared region is 268MB long */
-					iova-region-len = <0x10000000>;
-				};
-				iova-mem-region-secondary-heap {
-					iova-region-start = <0x17400000>;
-				};
-				iova-mem-region-io {
-					iova-region-start = <0x17600000>;
-					iova-region-len = <0xCF300000>;
-				};
-				iova-mem-qdss-region {
-					iova-region-start = <0x17500000>;
-				};
+&msm_cam_smmu {
+	msm_cam_smmu_icp {
+		icp_iova_mem_map: iova-mem-map {
+			iova-mem-region-shared {
+				/* Shared region is 268MB long */
+				iova-region-len = <0x10000000>;
+			};
+			iova-mem-region-secondary-heap {
+				iova-region-start = <0x17400000>;
+			};
+			iova-mem-region-io {
+				iova-region-start = <0x17600000>;
+				iova-region-len = <0xCF300000>;
+			};
+			iova-mem-qdss-region {
+				iova-region-start = <0x17500000>;
 			};
 		};
 	};

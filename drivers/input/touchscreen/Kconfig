@@ -10,27 +10,10 @@ menuconfig INPUT_TOUCHSCREEN
 	  If unsure, say Y.
 
 if INPUT_TOUCHSCREEN
-source "drivers/input/touchscreen/k6_focaltech_3658u/Kconfig"
-source "drivers/input/touchscreen/f4_goodix_driver_gt9886/Kconfig"
-source "drivers/input/touchscreen/ft8719_touch_f7b/Kconfig"
-source "drivers/input/touchscreen/fts_521/Kconfig"
-source "drivers/input/touchscreen/goodix_driver_gt9886/Kconfig"
-source "drivers/input/touchscreen/gt9896/Kconfig"
-source "drivers/input/touchscreen/nt36672c/Kconfig"
-source "drivers/input/touchscreen/nvt_touch_f7b/Kconfig"
 source "drivers/input/touchscreen/xiaomi/Kconfig"
-
-config TOUCHSCREEN_NVT_F7B
-	tristate "novatek touchscreens"
-	help
-	  Say Y here if you have a nvt touchscreen.
-	  nvt controllers are multi touch controllers which can
-	  report 5 touches at a time.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called nvt.
+source "drivers/input/touchscreen/focaltech_spi/Kconfig"
+source "drivers/input/touchscreen/gt9897t/Kconfig"
+source "drivers/input/touchscreen/gt9896/Kconfig"
 
 config TOUCHSCREEN_TDDI_DBCLK
         bool "TDDI IC enable double click"
@@ -41,6 +24,12 @@ config TOUCHSCREEN_TDDI_DBCLK
 config TOUCHSCREEN_PROPERTIES
 	def_tristate INPUT
 	depends on INPUT
+
+config SECURE_TOUCH
+	bool "Secure Touch"
+
+config I2C_BY_DMA
+    bool "I2C BY DMA"
 
 config TOUCHSCREEN_88PM860X
 	tristate "Marvell 88PM860x touchscreen"
@@ -1323,16 +1312,6 @@ config TOUCHSCREEN_RAYDIUM_CHIPSET
 
 	  If unsure, say N.
 
-
 source "drivers/input/touchscreen/focaltech_touch/Kconfig"
-
-config TOUCHSCREEN_COMMON
-	bool "Common touchscreen interface to interact with userspace"
-	default y
-	help
-	  Say Y here if you want to control touchpanel features via
-	  /sys/touchpanel.
-
-	  If unsure, say Y.
 
 endif

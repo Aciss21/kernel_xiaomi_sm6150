@@ -68,9 +68,8 @@
 &qupv3_se8_spi {
 	status = "ok";
 	irled@0 {
-		compatible = "ir-spi-led";
+		compatible = "ir-spi";
 		reg = <0x0>;
-		power-supply = <&irda_regulator>;
 		status = "ok";
 		spi-max-frequency = <19200000>;
 	};
@@ -134,10 +133,11 @@
 	thermal_message: thermal-message {
 		board-sensor = "VIRTUAL-SENSOR";
 	};
-	irda_regulator: irda-regulator {
-		compatible = "regulator-dummy";
-		regulator-name = "irda_regulator";
-	};
+};
+
+&mdss_dsi_phy0 {
+        qcom,panel-allow-phy-poweroff;
+        qcom,ulps-enabled;
 };
 
 &tlmm {
@@ -287,6 +287,7 @@
 				   3800000 3800000 3600000 3400000 3200000 3000000 2200000
 				   800000 700000>;
 	dpdm-supply = <&qusb_phy0>;
+	qcom,reg-dump-enable;
 	qcom,temp-battery-id;
 	qcom,temp-27W-enable;
 	qcom,sw-jeita-enable;
@@ -652,16 +653,6 @@
 		    0x03 0x250 /* TUNE5 */
 		    0x00 0x23c /* CHG_CTRL2 */
 		    0x22 0x210>; /* PWR_CTRL1 */
-};
-
-&mdss_dsi_phy0 {
-        qcom,panel-allow-phy-poweroff;
-        qcom,ulps-enabled;
-};
-
-&mdss_dsi_phy0 {
-        qcom,panel-allow-phy-poweroff;
-        qcom,ulps-enabled;
 };
 
 /* Enlarge TZ memory size to 62M */

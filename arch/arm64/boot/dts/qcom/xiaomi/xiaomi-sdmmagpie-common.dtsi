@@ -335,3 +335,7 @@
 &pil_gpu_mem {
 	reg = <0 0x97f15000 0 0x2000>;
 };
+
+&secure_display_memory {
+	size = <0 0x8c00000>;
+};
