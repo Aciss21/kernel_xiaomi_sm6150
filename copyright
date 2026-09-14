@@ -28,7 +28,7 @@ fi
 # ── Build Config ─────────────────────────────────────────────────
 DEVICE="courbet"
 KNAME="一マShuSi"
-VAR="01"
+VAR="Oem"
 
 ZIPNAME="${KNAME}-${VAR}.zip"
 
@@ -42,7 +42,7 @@ ANYKERNEL_BRANCH="master"
 TOOLCHAIN_DIR="$KERNEL_DIR/clang"
 CLANG_DIR="$TOOLCHAIN_DIR"
 
-CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/17.0.0-20230725-release/Clang-17.0.0-20230725.tar.gz"
+CLANG_URL="https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/09092023/neutron-clang-09092023.tar.zst"
 
 # ── Output Paths ─────────────────────────────────────────────────
 OUT="$KERNEL_DIR/out"
@@ -151,9 +151,9 @@ Status : Downloading"
 
     wget -q --show-progress \
         "$CLANG_URL" \
-        -O "$CLANG_DIR/clang.tar.gz"
+        -O "$CLANG_DIR/clang.tar.zst"
 
-    if [ ! -s "$CLANG_DIR/clang.tar.gz" ]; then
+    if [ ! -s "$CLANG_DIR/clang.tar.zst" ]; then
 
         echo "Download Clang failed."
 
@@ -170,14 +170,14 @@ Error  : Clang download failed"
     echo
     echo "Extracting Clang..."
 
-    tar -xzf "$CLANG_DIR/clang.tar.gz" \
+    tar -xf "$CLANG_DIR/clang.tar.zst" \
         -C "$CLANG_DIR"
 
     if [ $? -ne 0 ]; then
 
         echo "Failed to extract Clang."
 
-        rm -f "$CLANG_DIR/clang.tar.gz"
+        rm -f "$CLANG_DIR/clang.tar.zst"
 
         tg_update "Kernel Build Failed
 
@@ -293,6 +293,8 @@ Status  : Loading"
 make O="$OUT" \
     ARCH=arm64 \
     LLVM=1 \
+    LLVM_IAS=1 \
+    CC=clang \
     CROSS_COMPILE=aarch64-linux-gnu- \
     vendor/courbet_defconfig
 
@@ -343,6 +345,7 @@ make -j"$THREADS" \
     O="$OUT" \
     ARCH=arm64 \
     LLVM=1 \
+    LLVM_IAS=1 \
     CROSS_COMPILE=aarch64-linux-gnu- \
     CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
     2>&1 | tee "$BUILD_LOG"
