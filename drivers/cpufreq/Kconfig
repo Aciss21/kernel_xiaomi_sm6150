@@ -287,6 +287,27 @@ config CPU_FREQ_GOV_INTERACTIVE
 
 	  If in doubt, say N.
 
+config CPU_FREQ_GOV_NERV
+	tristate "'nerv' cpufreq policy governor"
+	depends on CPU_FREQ
+	select CPU_FREQ_GOV_ATTR_SET
+	select IRQ_WORK
+	help
+	  'nerv' - A balanced CPU frequency governor designed for
+	  daily use and gaming. It provides smooth frequency scaling
+	  to avoid thermal spikes during everyday workloads while
+	  offering fast ramp-up to a configurable hispeed frequency
+	  when burst loads are detected.
+
+	  The governor uses proportional frequency scaling based on
+	  real CPU utilization, with tunable thresholds for up/down
+	  scaling and a boost mechanism for gaming scenarios.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cpufreq_nerv.
+
+	  If in doubt, say N.
+
 comment "CPU frequency scaling drivers"
 
 config CPUFREQ_DT
