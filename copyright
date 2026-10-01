@@ -28,7 +28,7 @@ fi
 # ── Build Config ─────────────────────────────────────────────────
 DEVICE="courbet"
 KNAME="𝘠𝘢𝘮𝘢𝘨𝘢𝘵𝘢"
-VAR="oem"
+VAR="aosp"
 
 ZIPNAME="${KNAME}-${VAR}.zip"
 
@@ -42,7 +42,7 @@ ANYKERNEL_BRANCH="master"
 TOOLCHAIN_DIR="$KERNEL_DIR/clang"
 CLANG_DIR="$TOOLCHAIN_DIR"
 
-CLANG_URL="https://github.com/Neutron-Toolchains/clang-build-catalogue/releases/download/09092023/neutron-clang-09092023.tar.zst"
+CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/15.0.7-20260801-release/Clang-15.0.7-20260801.tar.gz"
 
 # ── Output Paths ─────────────────────────────────────────────────
 OUT="$KERNEL_DIR/out"
@@ -151,9 +151,9 @@ Status : Downloading"
 
     wget -q --show-progress \
         "$CLANG_URL" \
-        -O "$CLANG_DIR/clang.tar.zst"
+        -O "$CLANG_DIR/clang.tar.gz"
 
-    if [ ! -s "$CLANG_DIR/clang.tar.zst" ]; then
+    if [ ! -s "$CLANG_DIR/clang.tar.gz" ]; then
 
         echo "Download Clang failed."
 
@@ -170,14 +170,14 @@ Error  : Clang download failed"
     echo
     echo "Extracting Clang..."
 
-    tar -xf "$CLANG_DIR/clang.tar.zst" \
+    tar -xzf "$CLANG_DIR/clang.tar.gz" \
         -C "$CLANG_DIR"
 
     if [ $? -ne 0 ]; then
 
         echo "Failed to extract Clang."
 
-        rm -f "$CLANG_DIR/clang.tar.zst"
+        rm -f "$CLANG_DIR/clang.tar.gz"
 
         tg_update "Kernel Build Failed
 
