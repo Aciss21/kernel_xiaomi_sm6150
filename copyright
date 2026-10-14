@@ -140,6 +140,62 @@ Status  : Starting"
 # Pastikan selalu kembali ke root kernel
 cd "$KERNEL_DIR" || exit 1
 
+# ── Toolchain: Clang ─────────────────────────────────────────────
+#
+# ZyCromerZ Clang 17.0.0-20230725
+#
+CLANG_DIR="$KERNEL_DIR/clang"
+CLANG_TARBALL="Clang-17.0.0-20230725.tar.gz"
+CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/17.0.0-20230725-release/${CLANG_TARBALL}"
+
+if [ ! -x "$CLANG_DIR/bin/clang" ]; then
+
+    echo "[0/4] Setting up Clang..."
+
+    tg_update "Kernel Build
+
+Device : $DEVICE
+Kernel : $KNAME
+
+[0/4] Toolchain
+
+Clang  : 17.0.0-20230725
+Status : Downloading"
+
+    rm -rf "$CLANG_DIR"
+    mkdir -p "$CLANG_DIR"
+
+    curl -fL -o "$KERNEL_DIR/$CLANG_TARBALL" "$CLANG_URL"
+
+    if [ $? -eq 0 ]; then
+        tar -xzf "$KERNEL_DIR/$CLANG_TARBALL" -C "$CLANG_DIR"
+        rm -f "$KERNEL_DIR/$CLANG_TARBALL"
+    fi
+
+    if [ ! -x "$CLANG_DIR/bin/clang" ]; then
+
+        DURATION="$((SECONDS / 60))m $((SECONDS % 60))s"
+
+        echo
+        echo "Clang setup failed."
+
+        tg_update "Kernel Build Failed
+
+Device : $DEVICE
+Kernel : $KNAME
+
+Error  : Clang setup failed
+Time   : $DURATION"
+
+        exit 1
+    fi
+fi
+
+export CLANG_PATH="$CLANG_DIR"
+export PATH="$CLANG_DIR/bin:$PATH"
+
+echo "Clang  : $("$CLANG_DIR/bin/clang" --version | head -n1)"
+
 # ── Step 1: Clean ────────────────────────────────────────────────
 
 if [[ "$1" == "-c" || "$1" == "--clean" ]]; then
@@ -186,6 +242,8 @@ make O="$OUT" \
     ARCH=arm64 \
     LLVM=1 \
     LLVM_IAS=1 \
+    CC=clang \
+    CLANG_TRIPLE=aarch64-linux-gnu- \
     CROSS_COMPILE=aarch64-linux-gnu- \
     CROSS_COMPILE=aarch64-linux-gnu- \
     vendor/courbet_defconfig
@@ -239,6 +297,8 @@ make -j"$THREADS" \
     ARCH=arm64 \
     LLVM=1 \
     LLVM_IAS=1 \
+    CC=clang \
+    CLANG_TRIPLE=aarch64-linux-gnu- \
     CROSS_COMPILE=aarch64-linux-gnu- \
     CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
     2>&1 | tee "$BUILD_LOG"
