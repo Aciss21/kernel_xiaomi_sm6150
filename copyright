@@ -145,8 +145,8 @@ cd "$KERNEL_DIR" || exit 1
 # ZyCromerZ Clang 17.0.0-20230725
 #
 CLANG_DIR="$KERNEL_DIR/clang"
-CLANG_TARBALL="Clang-17.0.0-20230725.tar.gz"
-CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/17.0.0-20230725-release/${CLANG_TARBALL}"
+CLANG_TARBALL="Clang-19.0.0git-20240723.tar.gz"
+CLANG_URL="https://github.com/ZyCromerZ/Clang/releases/download/19.0.0git-20240723-release/Clang-19.0.0git-20240723.tar.gz"
 
 if [ ! -x "$CLANG_DIR/bin/clang" ]; then
 
