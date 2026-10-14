@@ -94,6 +94,13 @@ struct sched_domain_shared {
 	int		has_idle_cores;
 
 	bool            overutilized;
+
+	/*
+	 * BACKPORT (v5.19): SIS_UTIL scan-depth hint. Written on periodic
+	 * load balancing, read by select_idle_cpu(). Appended at the end so
+	 * the offsets of every field above are preserved.
+	 */
+	int		nr_idle_scan;
 };
 
 struct sched_domain {

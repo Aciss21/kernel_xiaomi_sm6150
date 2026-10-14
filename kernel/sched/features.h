@@ -56,7 +56,18 @@ SCHED_FEAT(TTWU_QUEUE, false)
  * When doing wakeups, attempt to limit superfluous scans of the LLC domain.
  */
 SCHED_FEAT(SIS_AVG_CPU, false)
-SCHED_FEAT(SIS_PROP, true)
+SCHED_FEAT(SIS_PROP, false)
+
+/*
+ * BACKPORT (v5.19): bound the LLC idle-CPU scan by the domain's aggregated
+ * utilization instead of the avg_scan_cost heuristic. When enabled this
+ * supersedes SIS_PROP. Default OFF: on this tree select_idle_cpu() is only
+ * reachable via __select_idle_sibling(), which select_idle_sibling() uses
+ * only when sysctl_sched_cstate_aware is cleared (default 1), so the hint is
+ * normally never consumed. The code stays in-tree and is runtime-toggleable
+ * via the sched features.
+ */
+SCHED_FEAT(SIS_UTIL, false)
 
 /*
  * Issue a WARN when we do multiple update_rq_clock() calls
