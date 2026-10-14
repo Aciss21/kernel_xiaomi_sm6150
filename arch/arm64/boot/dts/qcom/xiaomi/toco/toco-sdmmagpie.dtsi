@@ -232,7 +232,6 @@ And public attribution of xiaomi platforms(like F3 and so and)
 				   3000000 3000000 2600000 2400000 2200000 2200000 2000000
 				   1000000 700000>;
 	dpdm-supply = <&qusb_phy0>;
-	qcom,reg-dump-enable;
 	qcom,sw-jeita-enable;
 	qcom,step-charging-enable;
 	qcom,distinguish-qc-class-ab;
@@ -480,6 +479,11 @@ And public attribution of xiaomi platforms(like F3 and so and)
 	thermal_message: thermal-message {
 		board-sensor = "VIRTUAL-SENSOR";
 	};
+};
+
+&mdss_dsi_phy0 {
+        qcom,panel-allow-phy-poweroff;
+        qcom,ulps-enabled;
 };
 
 &mdss_dsi_phy0 {

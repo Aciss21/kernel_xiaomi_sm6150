@@ -3216,6 +3216,7 @@ CONFIG_SPECTRA_CAMERA=y
 CONFIG_SPECTRA_CAMERA_UPGRADE=y
 # CONFIG_MSM_AIS is not set
 # CONFIG_MSM_CAMERA is not set
+# CONFIG_CAMERA_DISABLE_DUMP_STATE is not set
 # CONFIG_CSID_CAMERA is not set
 # CONFIG_SOFTLED_CAMERA is not set
 # CONFIG_MSMB_CAMERA is not set
@@ -5353,6 +5354,14 @@ CONFIG_ESOC_MDM_DBG_ENG=y
 # CONFIG_MDM_DBG_REQ_ENG is not set
 
 #
+# KernelSU - SUSFS
+#
+CONFIG_KSU=y
+# CONFIG_KSU_TAMPER_SYSCALL_TABLE is not set
+CONFIG_KSU_HACK_ARM64_BRANCH_LINK=y
+CONFIG_KSU_SUSFS=y
+
+#
 # Firmware Drivers
 #
 CONFIG_ARM_PSCI_FW=y
@@ -6125,24 +6134,6 @@ CONFIG_SBITMAP=y
 # CONFIG_STRING_SELFTEST is not set
 
 #
-# Tech packages
-#
-
-#
-# Techpack audio options
-#
-# CONFIG_SND_SOC_TAS2563 is not set
-# CONFIG_TAS2563_CODEC is not set
-# CONFIG_TAS2563_MISC is not set
-# CONFIG_TAS2563_REGMAP is not set
-
-#
-# RmNet extensions
-#
-CONFIG_RMNET_PERF=y
-CONFIG_RMNET_SHS=y
-
-#
 # Xiaomi configuration options
 #
 CONFIG_MACH_XIAOMI=y
@@ -6167,7 +6158,13 @@ CONFIG_MACH_XIAOMI_SWEET=y
 #
 # Techpack audio options
 #
+# CONFIG_SND_SOC_TAS2563 is not set
+# CONFIG_TAS2563_CODEC is not set
+# CONFIG_TAS2563_MISC is not set
+# CONFIG_TAS2563_REGMAP is not set
 
 #
 # RmNet extensions
 #
+CONFIG_RMNET_PERF=y
+CONFIG_RMNET_SHS=y
