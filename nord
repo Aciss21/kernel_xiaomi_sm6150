@@ -8,6 +8,10 @@
 KERNEL_DIR="$(pwd)"
 
 # ── Telegram Config ──────────────────────────────────────────────
+# TG_TOKEN and TG_CHAT_ID are expected to be provided via environment variables.
+# When running in GitHub Actions, set them as secrets (e.g., GITHUB_TG_TOKEN, GITHUB_TG_CHAT_ID)
+# and export them before invoking the script.
+# If they are not set, the script will abort.
 
 if [ -z "$TG_TOKEN" ]; then
     TG_TOKEN="${GITHUB_TG_TOKEN:-}"  # fallback to GitHub secret env var
@@ -22,10 +26,13 @@ if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
 fi
 
 # ── Build Config ─────────────────────────────────────────────────
-DEVICE="courbet"
-DEVICE_NAME="Xiaomi Mi 11 Lite 4G"
+DEVICE="courbet"                     # codename
+DEVICE_NAME="Xiaomi Mi 11 Lite 4G"   # nama device di pesan Telegram
 KNAME="shirayuki"
-VAR="aosp"
+VAR="oem"
+
+ROOT_NAME="None"                     # contoh: KernelSU-Next, ReSukiSU, None
+KERNEL_BASE=""                       # contoh: Evolution-X (kosong = baris tidak ditampilkan)
 
 ZIPNAME="${KNAME}-${VAR}.zip"
 
@@ -60,6 +67,9 @@ KERNEL_VERSION="$(make -s -C "$KERNEL_DIR" kernelversion 2>/dev/null)"
 KERNEL_VERSION="${KERNEL_VERSION:-Unknown}"
 
 # ── Telegram Functions ───────────────────────────────────────────
+#
+# Pesan dikirim sebagai teks biasa (tanpa <pre>).
+#
 
 build_time() {
     echo "$((SECONDS / 60)) minutes $((SECONDS % 60)) seconds"
@@ -121,9 +131,17 @@ echo "================================================"
 cd "$KERNEL_DIR" || exit 1
 
 # ── Toolchain: AOSP Clang + AOSP GCC 4.9 ─────────────────────────
+#
+# Semua toolchain diambil dari satu repo (sesuai README):
+#   RyuujiX/android-kernel-tools (branch: tools)
+#
+#   clang/host/linux-x86/clang-r416183b
+#   gcc/linux-x86/aarch64/aarch64-linux-android-4.9
+#   gcc/linux-x86/arm/arm-linux-androideabi-4.9
+#
 TOOLS_REPO="https://github.com/RyuujiX/android-kernel-tools"
 TOOLS_BRANCH="tools"
-TOOLS_DIR="$KERNEL_DIR/tools"
+TOOLS_DIR="$KERNEL_DIR/chain"   # JANGAN "tools": bentrok dengan folder tools/ milik kernel
 
 CLANG_VER="clang-r416183b"
 CLANG_SUBDIR="clang/host/linux-x86/$CLANG_VER"
@@ -135,12 +153,21 @@ GCC64_DIR="$TOOLS_DIR/$GCC64_SUBDIR"
 GCC32_DIR="$TOOLS_DIR/$GCC32_SUBDIR"
 
 # ── Download Toolchain ───────────────────────────────────────────
+#
+# Hanya folder clang dan gcc yang di-checkout (sparse) supaya
+# sdclang dari repo tools tidak ikut terunduh.
+#
 
 if [ ! -x "$CLANG_DIR/bin/clang" ] \
     || [ ! -x "$GCC64_DIR/bin/aarch64-linux-android-gcc" ] \
     || [ ! -x "$GCC32_DIR/bin/arm-linux-androideabi-gcc" ]; then
 
     echo "[0/4] Setting up toolchain (AOSP $CLANG_VER + GCC 4.9)..."
+
+    tg_send "⚙️ Setting up toolchain
+
+Clang: AOSP $CLANG_VER
+GCC: AOSP GCC 4.9"
 
     rm -rf "$TOOLS_DIR"
 
