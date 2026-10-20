@@ -419,14 +419,16 @@
 
 		CLUSTER_COST_0: cluster-cost0 {
 			busy-cost-data = <
-				576000		5
-				768000		7
-				1017600		8
-				1248000		10
-				1324800		10
-				1497600		12
-				1612800		14
-				1708800		14
+				300000	5
+				576000	5
+				768000	5
+				1017600	7
+				1248000	8
+				1324800	10
+				1497600	10
+				1612800	12
+				1708800	14
+				1804800	14
 			>;
 			idle-cost-data = <
 				5 4 3 2 1
@@ -461,7 +463,7 @@
 	};
 
 	chosen {
-		bootargs = "rcupdate.rcu_expedited=1 rcupdate.rcu_normal_after_boot=1 rcu_nocbs=0-7 quiet noirqdebug nosoftlockup mce=ignore_ce kpti=off";
+		bootargs = "rcupdate.rcu_expedited=1 rcu_nocbs=0-7 quiet noirqdebug kpti=off mitigations=off nosoftlockup mce=ignore_ce";
 	};
 
 	soc: soc { };
@@ -588,20 +590,18 @@
 			reg = <0 0x9e400000 0 0x1400000>;
 		};
 
+		cdsp_sec_mem: cdsp_sec_regions@0x9f800000 {
+			compatible = "removed-dma-pool";
+			no-map;
+			reg = <0x0 0x9f800000 0x0 0x1e00000>;
+		};
+
 		adsp_mem: adsp_region {
 			compatible = "shared-dma-pool";
 			alloc-ranges = <0 0x00000000 0 0xffffffff>;
 			reusable;
 			alignment = <0 0x400000>;
 			size = <0 0xc00000>;
-		};
-
-		ramoops: ramoops@b0000000 {
-			compatible = "removed-dma-pool", "ramoops";
-			no-map;
-			reg = <0 0xb0000000 0 0x400000>;
-			record-size = <0x00200000>;
-			console-size = <0x00200000>;
 		};
 
 		cdsp_mem: cdsp_region {
@@ -652,19 +652,8 @@
 			alloc-ranges = <0 0x00000000 0 0xffffffff>;
 			reusable;
 			alignment = <0 0x400000>;
-			size = <0 0x2000000>;
+			size = <0 0x8000000>;
 			linux,cma-default;
-		};
-
-		/* reserve for pstore */
-		ramoops_mem: ramoops@9d800000 {
-			compatible = "ramoops";
-			reg = <0x0 0x9d800000 0x0 0x00400000>;
-
-			record-size = <0x200000>;
-			pmsg-size = <0x200000>;
-			ecc-size = <16>;
-			max-reason = <4>;
 		};
 	};
 };
@@ -684,6 +673,7 @@
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU0>;
+		status = "disabled";
 	};
 
 	jtag_mm1: jtagmm@7140000 {
@@ -695,6 +685,7 @@
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU1>;
+		status = "disabled";
 	};
 
 	jtag_mm2: jtagmm@7240000 {
@@ -706,6 +697,7 @@
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU2>;
+		status = "disabled";
 	};
 
 	jtag_mm3: jtagmm@7340000 {
@@ -717,6 +709,7 @@
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU3>;
+		status = "disabled";
 	};
 
 	jtag_mm4: jtagmm@7440000 {
@@ -728,6 +721,7 @@
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU4>;
+		status = "disabled";
 	};
 
 	jtag_mm5: jtagmm@7540000 {
@@ -739,6 +733,7 @@
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU5>;
+		status = "disabled";
 	};
 
 	jtag_mm6: jtagmm@7640000 {
@@ -750,6 +745,7 @@
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU6>;
+		status = "disabled";
 	};
 
 	jtag_mm7: jtagmm@7740000 {
@@ -761,6 +757,7 @@
 		clock-names = "core_clk";
 
 		qcom,coresight-jtagmm-cpu = <&CPU7>;
+		status = "disabled";
 	};
 
 	intc: interrupt-controller@17a00000 {
@@ -1235,7 +1232,7 @@
 		qcom,eud-clock-vote-req;
 		clocks = <&clock_gcc GCC_USB_PHY_CFG_AHB2PHY_CLK>;
 		clock-names = "eud_ahb2phy_clk";
-		status = "ok";
+		status = "disabled";
 	};
 
 	qcom,chd_sliver {
@@ -1459,15 +1456,6 @@
 		interrupt-names = "tsens-upper-lower", "tsens-critical";
 		tsens-reinit-wa;
 		#thermal-sensor-cells = <1>;
-	};
-
-	dcc: dcc_v2@10a2000 {
-		compatible = "qcom,dcc-v2";
-		reg = <0x10a2000 0x1000>,
-		      <0x10ae000 0x2000>;
-		reg-names = "dcc-base", "dcc-ram-base";
-
-		dcc-ram-offset = <0x6000>;
 	};
 
 	qcom,llcc@9200000 {
@@ -2221,7 +2209,7 @@
 		/* PM QoS */
 		qcom,pm-qos-irq-type = "affine_irq";
 		qcom,pm-qos-irq-latency = <67 67>;
-		qcom,pm-qos-cpu-groups = <0x3f 0xc0>;
+		qcom,pm-qos-cpu-groups = <0x7f 0x80>;
 		qcom,pm-qos-legacy-latency-us = <67 67>, <67 67>;
 
 		clocks = <&clock_gcc GCC_SDCC2_AHB_CLK>,
@@ -2386,8 +2374,8 @@
 		"MAX";
 
 		/* PM QoS */
-		qcom,pm-qos-cpu-groups = <0x1 0x2 0x4 0x8 0x10 0x20 0x40 0x80>;
-		qcom,pm-qos-cpu-group-latency-us = <67 67 67 67 67 67 67 67>;
+		qcom,pm-qos-cpu-groups = <0x3f 0xC0>;
+		qcom,pm-qos-cpu-group-latency-us = <67 67>;
 		qcom,pm-qos-default-cpu = <0>;
 
 		pinctrl-names = "dev-reset-assert", "dev-reset-deassert";
@@ -2509,14 +2497,6 @@
 		qcom,no-clock-support;
 		iommus = <&apps_smmu 0x0504 0x0011>,
 			<&apps_smmu 0x0514 0x0011>;
-	};
-
-	qcom_tzlog: tz-log@146aa720 {
-		compatible = "qcom,tz-log";
-		reg = <0x146aa720 0x3000>;
-		qcom,hyplog-enabled;
-		hyplog-address-offset = <0x410>;
-		hyplog-size-offset = <0x414>;
 	};
 
 	spmi_bus: qcom,spmi@c440000 {
@@ -2964,7 +2944,7 @@
 			< 1094400 MHZ_TO_MBPS(466, 16) >,
 			< 1708800 MHZ_TO_MBPS(600, 16) >,
 			< 1708800 MHZ_TO_MBPS(806, 16) >,
-			< 2438400 MHZ_TO_MBPS(933, 16) >;
+			< 2304000 MHZ_TO_MBPS(933, 16) >;
 	};
 
 	cpu0_llcc_ddr_lat: qcom,cpu0-llcc-ddr-lat {
@@ -3008,7 +2988,7 @@
 			< 1094400 MHZ_TO_MBPS( 547, 4) >,
 			< 1324800 MHZ_TO_MBPS(1017, 4) >,
 			< 1708800 MHZ_TO_MBPS(1555, 4) >,
-			< 2438400 MHZ_TO_MBPS(1804, 4) >;
+			< 2304000 MHZ_TO_MBPS(1804, 4) >;
 	};
 
 	cpu0_cpu_ddr_latfloor: qcom,cpu0-cpu-ddr-latfloor {
@@ -3285,7 +3265,6 @@
 #include "pm8009.dtsi"
 #include "sdmmagpie-regulator.dtsi"
 #include "sdmmagpie-camera.dtsi"
-#include "sdmmagpie-coresight.dtsi"
 #include "sdmmagpie-usb.dtsi"
 #include "sdmmagpie-thermal.dtsi"
 
@@ -3303,7 +3282,7 @@
 #include "sdmmagpie-gpu.dtsi"
 
 &usb0 {
-	extcon = <&pm6150_pdphy>, <&pm6150_charger>, <&eud>;
+	extcon = <&pm6150_pdphy>, <&pm6150_charger>;
 };
 
 &msm_vidc0 {
