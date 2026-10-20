@@ -59,12 +59,15 @@
 				qcom,mdss-dsi-h-right-border = <0>;
 				qcom,mdss-dsi-v-top-border = <0>;
 				qcom,mdss-dsi-v-bottom-border = <0>;
-				qcom,mdss-dsi-panel-clockrate = <682000000>;
+				qcom,mdss-dsi-panel-clockrate = <652000000>;
 				qcom,mdss-dsi-panel-jitter = <0x5 0x1>;
 				qcom,mdss-mdp-transfer-time-us = <15700>;
 				qcom,mdss-dsi-on-command = [
 					/* Command Mode */
 					39 01 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 B2 58
+					15 00 00 00 00 00 02 6F 02
+					39 00 00 00 00 00 03 B2 0C 0C	/* 60Hz dimming speed: 12 frames*/
 					/* ESD/MIPI Error Flag, Low when Error Happen */
 					39 00 00 00 00 00 05 BE 0E 0B 14 13
 					15 00 00 00 00 00 02 6F 05
@@ -72,6 +75,9 @@
 					15 00 00 00 00 00 02 C0 66
 					15 00 00 00 00 00 02 6F 08
 					15 01 00 00 00 00 02 B5 32
+					/* SOE OFF */
+					39 01 00 00 00 00 06 F0 55 AA 52 08 00
+					39 01 00 00 00 00 0A C3 00 7F 00 00 00 00 00 00 00
 					/* Round Corner OFF */
 					39 00 00 00 00 00 06 F0 55 AA 52 08 07
 					39 01 00 00 00 00 03 C0 00 02
@@ -171,12 +177,15 @@
 				qcom,mdss-dsi-h-right-border = <0>;
 				qcom,mdss-dsi-v-top-border = <0>;
 				qcom,mdss-dsi-v-bottom-border = <0>;
-				qcom,mdss-dsi-panel-clockrate = <682000000>;
+				qcom,mdss-dsi-panel-clockrate = <652000000>;
 				qcom,mdss-dsi-panel-jitter = <0x5 0x1>;
 				qcom,mdss-mdp-transfer-time-us = <9500>;
 				qcom,mdss-dsi-on-command = [
 					/* Command Mode */
 					39 01 00 00 00 00 06 F0 55 AA 52 08 00
+					15 00 00 00 00 00 02 B2 58
+					15 00 00 00 00 00 02 6F 02
+					39 00 00 00 00 00 03 B2 12 12	/* 90Hz dimming speed: 18 frames*/
 					/* ESD/MIPI Error Flag, Low when Error Happen */
 					39 00 00 00 00 00 05 BE 0E 0B 14 13
 					15 00 00 00 00 00 02 6F 05
@@ -184,6 +193,9 @@
 					15 00 00 00 00 00 02 C0 66
 					15 00 00 00 00 00 02 6F 08
 					15 01 00 00 00 00 02 B5 32
+					/* SOE OFF */
+					39 01 00 00 00 00 06 F0 55 AA 52 08 00
+					39 01 00 00 00 00 0A C3 00 7F 00 00 00 00 00 00 00
 					/* Round Corner OFF */
 					39 00 00 00 00 00 06 F0 55 AA 52 08 07
 					39 01 00 00 00 00 03 C0 00 02
