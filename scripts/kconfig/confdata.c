@@ -738,6 +738,56 @@ next_menu:
 	return 0;
 }
 
+static bool symbol_will_be_written(struct symbol *sym)
+{
+	struct symbol *choice;
+	struct symbol *default_sym;
+
+	if (!sym || (sym->flags & SYMBOL_CHOICE))
+		return false;
+
+	sym_calc_value(sym);
+	if (!(sym->flags & SYMBOL_WRITE))
+		return false;
+
+	if (sym_is_choice_value(sym)) {
+		choice = prop_get_symbol(sym_get_choice_prop(sym));
+		default_sym = sym_choice_default(choice);
+		if (!sym_is_optional(choice) && sym == default_sym &&
+		    sym->type == S_BOOLEAN &&
+		    sym_get_tristate_value(sym) == yes)
+			return false;
+	}
+
+	return true;
+}
+
+/*
+ * Return true if the first thing printed for this menu list is a symbol,
+ * rather than another section header.  This prevents section headers with
+ * no configuration entries directly below them from being written.
+ */
+static bool first_output_is_symbol(struct menu *menu)
+{
+	for (; menu; menu = menu->next) {
+		if (menu->sym) {
+			if (symbol_will_be_written(menu->sym))
+				return true;
+			if (menu->list && first_output_is_symbol(menu->list))
+				return true;
+			continue;
+		}
+
+		if (menu_is_visible(menu))
+			return false;
+
+		if (menu->list && first_output_is_symbol(menu->list))
+			return true;
+	}
+
+	return false;
+}
+
 int conf_write(const char *name)
 {
 	FILE *out;
@@ -791,7 +841,12 @@ int conf_write(const char *name)
 	while (menu) {
 		sym = menu->sym;
 		if (!sym) {
+			struct menu *first;
+
 			if (!menu_is_visible(menu))
+				goto next;
+			first = menu->list ? menu->list : menu->next;
+			if (!first_output_is_symbol(first))
 				goto next;
 			str = menu_get_prompt(menu);
 			fprintf(out, "\n"
