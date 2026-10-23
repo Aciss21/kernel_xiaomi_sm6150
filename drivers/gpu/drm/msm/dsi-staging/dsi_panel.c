@@ -2259,12 +2259,14 @@ static int dsi_panel_parse_misc_features(struct dsi_panel *panel)
 {
 	struct dsi_parser_utils *utils = &panel->utils;
 
-	panel->ulps_feature_enabled = true;
+	panel->ulps_feature_enabled =
+		utils->read_bool(utils->data, "qcom,ulps-enabled");
 
 	pr_debug("%s: ulps feature %s\n", __func__,
 		(panel->ulps_feature_enabled ? "enabled" : "disabled"));
 
-	panel->ulps_suspend_enabled = true;
+	panel->ulps_suspend_enabled =
+		utils->read_bool(utils->data, "qcom,suspend-ulps-enabled");
 
 	pr_debug("%s: ulps during suspend feature %s", __func__,
 		(panel->ulps_suspend_enabled ? "enabled" : "disabled"));
@@ -4686,20 +4688,33 @@ int dsi_panel_post_switch(struct dsi_panel *panel)
 int dsi_panel_enable(struct dsi_panel *panel)
 {
 	int rc = 0;
+	u32 count = 0;
 
 	if (!panel) {
 		pr_err("Invalid params\n");
 		return -EINVAL;
 	}
 
+	count = panel->cur_mode->priv_info->
+			cmd_sets[DSI_CMD_SET_DISP_BC_120HZ].count;
+
 	mutex_lock(&panel->panel_lock);
 
 	rc = dsi_panel_tx_cmd_set(panel, DSI_CMD_SET_ON);
-	if (rc)
+	if (rc) {
 		pr_err("[%s] failed to send DSI_CMD_SET_ON cmds, rc=%d\n",
 		       panel->name, rc);
-	else
+	} else {
 		panel->panel_initialized = true;
+
+		if (count && (panel->cur_mode->timing.refresh_rate == 120)) {
+			rc = dsi_panel_tx_cmd_set(panel,
+					DSI_CMD_SET_DISP_BC_120HZ);
+			if (rc)
+				pr_err("[%s] failed to send DSI_CMD_SET_DISP_BC_120HZ cmd, rc=%d\n",
+				       panel->name, rc);
+		}
+	}
 	mutex_unlock(&panel->panel_lock);
 
 	if (panel->hbm_mode)
