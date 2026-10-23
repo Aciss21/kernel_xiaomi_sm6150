@@ -72,6 +72,7 @@
 	};
 
 	dsi_k6_38_0e_0b_fhd_dsc_video_display: qcom,dsi-display@26 {
+
 		label = "dsi_k6_38_0e_0b_fhd_dsc_video_display";
 		qcom,display-type = "primary";
 
@@ -236,7 +237,7 @@
 	qcom,mdss-dsi-display-timings {
 		timing@0{
 			qcom,mdss-dsi-panel-phy-timings = [00 24 0a 0a 26 25 09
-					0a 06 02 04 00];
+			    0a 06 02 04 00];
 			qcom,display-topology = <1 1 1>;
 			qcom,default-topology-index = <0>;
 		};

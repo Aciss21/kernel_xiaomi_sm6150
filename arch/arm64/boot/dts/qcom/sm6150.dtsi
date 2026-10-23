@@ -41,7 +41,7 @@
 		serial0 = &qupv3_se0_2uart;
 		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
 		sdhc2 = &sdhc_2; /* SDC2 SD Card slot */
-		spi0 = &qupv3_se6_spi;
+		spi0 = &qupv3_se4_spi;
 		i2c0 = &qupv3_se5_i2c;
 		i2c1 = &qupv3_se1_i2c;
 		i2c2 = &qupv3_se3_i2c;
@@ -3233,6 +3233,7 @@
 #include "sm6150-camera.dtsi"
 #include "sm6150-ion.dtsi"
 #include "msm-arm-smmu-sm6150.dtsi"
+#include "sm6150-coresight.dtsi"
 #include "sm6150-bus.dtsi"
 #include "sm6150-vidc.dtsi"
 #include "sm6150-audio.dtsi"
