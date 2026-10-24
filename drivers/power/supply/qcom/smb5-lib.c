@@ -9990,9 +9990,6 @@ int smblib_init(struct smb_charger *chg)
 	INIT_DELAYED_WORK(&chg->reverse_boost_work, smblib_reverse_boost_work);
 	setup_timer(&chg->apsd_timer, apsd_timer_cb, (unsigned long)chg);
 #endif
-	if (chg->dcin_uusb_over_gpio_en)
-		INIT_DELAYED_WORK(&chg->micro_usb_switch_work,
-					smblib_micro_usb_switch_work);
 
 	setup_timer(&chg->apsd_timer, apsd_timer_cb, (unsigned long)chg);
 
