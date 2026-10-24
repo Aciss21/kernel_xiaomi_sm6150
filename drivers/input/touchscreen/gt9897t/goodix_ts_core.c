@@ -1202,7 +1202,7 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 			input_mt_slot(dev, i);
 			input_mt_report_slot_state(dev, MT_TOOL_FINGER, false);
 			if (__test_and_clear_bit(i, &core_data->touch_id)) {
-				ts_debug("finger report leave:%d", i);
+				ts_info("finger report leave:%d", i);
 			}
 			continue;
 		}
@@ -1216,7 +1216,7 @@ static void goodix_ts_report_finger(struct input_dev *dev,
 		input_report_abs(dev, ABS_MT_POSITION_Y,
 				touch_data->coords[i].y);
 		if (!__test_and_set_bit(i, &core_data->touch_id)) {
-			ts_debug("finger report press:%d", i);
+			ts_info("finger report press:%d", i);
 		}
 	}
 
@@ -1967,18 +1967,18 @@ int goodix_ts_fb_notifier_callback(struct notifier_block *self,
 
 	struct goodix_ts_core *core_data =
 		container_of(self, struct goodix_ts_core, fb_notifier);
-	struct drm_notify_data *fb_event = data;
+	struct msm_drm_notifier *fb_event = data;
 	int blank;
 
 	if (fb_event && fb_event->data && core_data) {
 		blank = *(int *)(fb_event->data);
 		/* ts_info("notifier tp event:%d, code:%d.", event, blank); */
 		flush_workqueue(core_data->event_wq);
-		if (event == DRM_EARLY_EVENT_BLANK && (blank == DRM_BLANK_POWERDOWN ||
-			blank == DRM_BLANK_LP1 || blank == DRM_BLANK_LP2)) {
-			ts_info("touchpanel suspend by %s", blank == DRM_BLANK_POWERDOWN ? "blank" : "doze");
+		if (event == MSM_DRM_EARLY_EVENT_BLANK && (blank == MSM_DRM_BLANK_POWERDOWN ||
+			blank == MSM_DRM_BLANK_LP1 || blank == MSM_DRM_BLANK_LP2)) {
+			ts_info("touchpanel suspend by %s", blank == MSM_DRM_BLANK_POWERDOWN ? "blank" : "doze");
 			queue_work(core_data->event_wq, &core_data->suspend_work);
-		} else if (event == DRM_EVENT_BLANK && blank == DRM_BLANK_UNBLANK) {
+		} else if (event == MSM_DRM_EVENT_BLANK && blank == MSM_DRM_BLANK_UNBLANK) {
 			ts_info("touchpanel resume");
 			queue_work(core_data->event_wq, &core_data->resume_work);
 		}
@@ -2491,7 +2491,7 @@ int goodix_ts_stage2_init(struct goodix_ts_core *cd)
 
 #ifdef CONFIG_DRM
 	cd->fb_notifier.notifier_call = goodix_ts_fb_notifier_callback;
-	ret = drm_register_client(&cd->fb_notifier);
+	ret = msm_drm_register_client(&cd->fb_notifier);
 	if (ret)
 		ts_err("Failed to register fb notifier client:%d", ret);
 #endif
