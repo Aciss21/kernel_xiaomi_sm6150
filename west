@@ -187,22 +187,6 @@ fi
 CLANG_VERSION="$(clang --version | head -n1)"
 LINKER_VERSION="$(ld.lld --version | head -n1)"
 
-echo "Clang  : $CLANG_VERSION"
-echo "Linker : $LINKER_VERSION"
-echo "LLVM   : $(command -v llvm-ar)"
-echo "ARM64  : $CROSS_COMPILE"
-echo "ARM32  : $CROSS_COMPILE_ARM32"
-echo "LTO    : Disabled"
-
-tg_send "⚙️ Toolchain Ready
-
-Compiler: Gonon Clang 16.0.6
-Version: $CLANG_VERSION
-Linker: $LINKER_VERSION
-ARM64: $CROSS_COMPILE
-ARM32: $CROSS_COMPILE_ARM32
-LTO: Disabled"
-
 # ── Telegram: Build Triggered ────────────────────────────────────
 
 tg_send "🔨 Kernel Build Triggered
