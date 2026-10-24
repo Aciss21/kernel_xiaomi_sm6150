@@ -23,6 +23,10 @@
 *.i
 *.ko
 *.ll
+*.out
+*.clang
+*.KernelSU
+*.zip
 *.lst
 *.lz4
 *.lzma
