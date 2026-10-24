@@ -1,0 +1,400 @@
+#!/bin/bash
+# ================================================================
+#   Kernel Build Script - courbet
+#   By: Aciss
+# ================================================================
+
+# ── Project Directory ────────────────────────────────────────────
+KERNEL_DIR="$(pwd)"
+
+# ── Telegram Config ──────────────────────────────────────────────
+# TG_TOKEN and TG_CHAT_ID are expected to be provided via environment variables.
+# When running in GitHub Actions, set them as secrets (e.g., GITHUB_TG_TOKEN, GITHUB_TG_CHAT_ID)
+# and export them before invoking the script.
+# If they are not set, the script will abort.
+
+if [ -z "$TG_TOKEN" ]; then
+    TG_TOKEN="${GITHUB_TG_TOKEN:-}"  # fallback to GitHub secret env var
+fi
+if [ -z "$TG_CHAT_ID" ]; then
+    TG_CHAT_ID="${GITHUB_TG_CHAT_ID:-}"  # fallback to GitHub secret env var
+fi
+
+if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
+    echo "I GOT YOU"
+    exit 1
+fi
+
+# ── Build Config ─────────────────────────────────────────────────
+DEVICE="courbet"                     # codename
+DEVICE_NAME="Xiaomi Mi 11 Lite 4G"   # nama device di pesan Telegram
+KNAME="shirayuki"
+VAR="aosp"
+
+ROOT="KSU"                     # contoh: KernelSU-Next, ReSukiSU, None
+KERNEL_BASE=""                       # contoh: Evolution-X (kosong = baris tidak ditampilkan)
+
+ZIPNAME="${KNAME}-${VAR}-${ROOT}.zip"
+
+ANYKERNEL_REPO="https://github.com/Aciss21/AnyKernel3.git"
+ANYKERNEL_BRANCH="master"
+
+# ── Output Paths ─────────────────────────────────────────────────
+OUT="$KERNEL_DIR/out"
+
+KERNEL="$OUT/arch/arm64/boot/Image.gz"
+DTBO="$OUT/arch/arm64/boot/dtbo.img"
+DTB="$OUT/arch/arm64/boot/dtb.img"
+
+BUILD_LOG="$KERNEL_DIR/build.log"
+
+# ── Exports ──────────────────────────────────────────────────────
+export ARCH=arm64
+
+export KBUILD_BUILD_USER="Aciss"
+export KBUILD_BUILD_HOST="NeRv-Company"
+
+SECONDS=0
+
+# ── Build Info ───────────────────────────────────────────────────
+
+DOCKER_OS="$(grep -oP '(?<=^PRETTY_NAME=").*(?=")' /etc/os-release 2>/dev/null)"
+DOCKER_OS="${DOCKER_OS:-$(uname -sr)}"
+
+DATE="$(TZ=Asia/Jakarta date +"%-d %B %Y, %H:%M WIB")"
+
+KERNEL_VERSION="$(make -s -C "$KERNEL_DIR" kernelversion 2>/dev/null)"
+KERNEL_VERSION="${KERNEL_VERSION:-Unknown}"
+
+# ── Telegram Functions ───────────────────────────────────────────
+#
+# Pesan dikirim sebagai teks biasa (tanpa <pre>).
+#
+
+build_time() {
+    echo "$((SECONDS / 60)) minutes $((SECONDS % 60)) seconds"
+}
+
+tg_send() {
+    curl -s -X POST \
+        "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+        -d "chat_id=${TG_CHAT_ID}" \
+        --data-urlencode "text=$1" \
+        > /dev/null
+}
+
+tg_send_file() {
+    curl -s \
+        -F "document=@$1" \
+        -F "chat_id=$TG_CHAT_ID" \
+        --form-string "caption=$2" \
+        "https://api.telegram.org/bot${TG_TOKEN}/sendDocument" \
+        > /dev/null
+}
+
+# tg_fail "alasan" [file_log]
+tg_fail() {
+    local reason="$1"
+    local logfile="$2"
+    local msg
+
+    msg="❌ Build Failed!
+
+Reason: $reason
+Build took: $(build_time)"
+
+    echo
+    echo "Build failed: $reason"
+
+    if [ -n "$logfile" ] && [ -f "$logfile" ]; then
+        tg_send_file "$logfile" "$msg"
+    else
+        tg_send "$msg"
+    fi
+
+    exit 1
+}
+
+# ── Header ───────────────────────────────────────────────────────
+
+echo "================================================"
+echo "       KUDA ASELI NAIL KUDA BESI"
+echo "================================================"
+echo " Device  : $DEVICE"
+echo " Kernel  : $KNAME"
+echo " Variant : $VAR"
+echo " Builder : $KBUILD_BUILD_USER@$KBUILD_BUILD_HOST"
+echo " Output  : $ZIPNAME"
+echo "================================================"
+
+# Pastikan selalu kembali ke root kernel
+cd "$KERNEL_DIR" || exit 1
+
+# ── Toolchain: AOSP Clang + AOSP GCC 4.9 ─────────────────────────
+#
+# Semua toolchain diambil dari satu repo (sesuai README):
+#   RyuujiX/android-kernel-tools (branch: tools)
+#
+#   clang/host/linux-x86/clang-r416183b
+#   gcc/linux-x86/aarch64/aarch64-linux-android-4.9
+#   gcc/linux-x86/arm/arm-linux-androideabi-4.9
+#
+TOOLS_REPO="https://github.com/RyuujiX/android-kernel-tools"
+TOOLS_BRANCH="tools"
+TOOLS_DIR="$KERNEL_DIR/chain"   # JANGAN "tools": bentrok dengan folder tools/ milik kernel
+
+CLANG_VER="clang-r416183b"
+CLANG_SUBDIR="clang/host/linux-x86/$CLANG_VER"
+GCC64_SUBDIR="gcc/linux-x86/aarch64/aarch64-linux-android-4.9"
+GCC32_SUBDIR="gcc/linux-x86/arm/arm-linux-androideabi-4.9"
+
+CLANG_DIR="$TOOLS_DIR/$CLANG_SUBDIR"
+GCC64_DIR="$TOOLS_DIR/$GCC64_SUBDIR"
+GCC32_DIR="$TOOLS_DIR/$GCC32_SUBDIR"
+
+# ── Download Toolchain ───────────────────────────────────────────
+#
+# Hanya folder clang dan gcc yang di-checkout (sparse) supaya
+# sdclang dari repo tools tidak ikut terunduh.
+#
+
+if [ ! -x "$CLANG_DIR/bin/clang" ] \
+    || [ ! -x "$GCC64_DIR/bin/aarch64-linux-android-gcc" ] \
+    || [ ! -x "$GCC32_DIR/bin/arm-linux-androideabi-gcc" ]; then
+
+    echo "[0/4] Setting up toolchain (AOSP $CLANG_VER + GCC 4.9)..."
+
+    tg_send "⚙️ Setting up toolchain
+
+Clang: AOSP $CLANG_VER
+GCC: AOSP GCC 4.9"
+
+    rm -rf "$TOOLS_DIR"
+
+    git clone -q --depth=1 --filter=blob:none --sparse \
+        -b "$TOOLS_BRANCH" \
+        "$TOOLS_REPO" "$TOOLS_DIR" \
+    && git -C "$TOOLS_DIR" sparse-checkout set \
+        "$CLANG_SUBDIR" \
+        "$GCC64_SUBDIR" \
+        "$GCC32_SUBDIR"
+
+    [ -x "$CLANG_DIR/bin/clang" ] \
+        || tg_fail "AOSP Clang setup failed"
+
+    [ -x "$GCC64_DIR/bin/aarch64-linux-android-gcc" ] \
+        || tg_fail "GCC64 setup failed"
+
+    [ -x "$GCC32_DIR/bin/arm-linux-androideabi-gcc" ] \
+        || tg_fail "GCC32 setup failed"
+fi
+
+# ── Set Toolchain PATH & Flags ───────────────────────────────────
+
+export PATH="$GCC64_DIR/bin:$PATH"
+export PATH="$GCC32_DIR/bin:$PATH"
+export PATH="$CLANG_DIR/bin:$PATH"
+export LD_LIBRARY_PATH="$CLANG_DIR/lib64:${LD_LIBRARY_PATH:-}"
+
+export ARCH=arm64
+export SUBARCH=ARM64
+export CLANG_TRIPLE=aarch64-linux-gnu-
+export CROSS_COMPILE=aarch64-linux-android-
+export CROSS_COMPILE_ARM32=arm-linux-androideabi-
+
+echo "Clang  : $("$CLANG_DIR/bin/clang" --version | head -n1)"
+echo "GCC64  : $(aarch64-linux-android-gcc --version | head -n1)"
+echo "GCC32  : $(arm-linux-androideabi-gcc --version | head -n1)"
+
+# Versi clang untuk pesan Telegram, contoh: "clang version 12.0.5"
+CLANG_VERSION="$("$CLANG_DIR/bin/clang" --version | head -n1 \
+    | sed -E 's/\(https?:[^)]*\)//g; s/^Android \([^)]*\) //; s/[[:space:]]+$//')"
+
+# ── Telegram: Build Triggered ────────────────────────────────────
+
+tg_send "🔨 Kernel Build Triggered
+
+Docker OS: $DOCKER_OS
+Date: $DATE
+Device: $DEVICE_NAME
+Codename: $DEVICE
+Kernel Version: $KERNEL_VERSION
+Root: $ROOT_NAME
+Compiler: 🧪 AOSP $CLANG_VERSION"
+
+# ── Step 1: Clean ────────────────────────────────────────────────
+
+if [[ "$1" == "-c" || "$1" == "--clean" ]]; then
+
+    echo "[1/4] Cleaning output..."
+
+    rm -rf "$OUT"
+
+fi
+
+# ── Step 2: Defconfig ────────────────────────────────────────────
+
+echo "[2/4] Loading defconfig..."
+
+echo
+echo "Working directory:"
+pwd
+
+echo
+echo "Defconfig:"
+echo "arch/arm64/configs/vendor/courbet_defconfig"
+echo
+
+make O="$OUT" \
+    CC=clang \
+    AR=llvm-ar \
+    NM=llvm-nm \
+    STRIP=llvm-strip \
+    OBJDUMP=llvm-objdump \
+    OBJCOPY=llvm-objcopy \
+    vendor/courbet_defconfig
+
+DEFCONFIG_STATUS=$?
+
+if [ "$DEFCONFIG_STATUS" -ne 0 ]; then
+    tg_fail "Defconfig failed"
+fi
+
+echo "Defconfig loaded successfully."
+
+# ── Step 3: Compile ──────────────────────────────────────────────
+
+echo "[3/4] Compiling kernel..."
+
+THREADS=$(nproc --all)
+
+rm -f "$BUILD_LOG"
+
+make -j"$THREADS" \
+    O="$OUT" \
+    CC=clang \
+    AR=llvm-ar \
+    NM=llvm-nm \
+    STRIP=llvm-strip \
+    OBJDUMP=llvm-objdump \
+    OBJCOPY=llvm-objcopy \
+    2>&1 | tee "$BUILD_LOG"
+
+BUILD_STATUS=${PIPESTATUS[0]}
+
+# ── Check Build ──────────────────────────────────────────────────
+
+if [ "$BUILD_STATUS" -ne 0 ] || [ ! -f "$KERNEL" ]; then
+    echo "Check: $BUILD_LOG"
+    tg_fail "Kernel compilation failed" "$BUILD_LOG"
+fi
+
+echo
+echo "Kernel compiled successfully."
+echo "Image: $KERNEL"
+
+# ── Step 4: Packaging ────────────────────────────────────────────
+
+echo "[4/4] Packaging AnyKernel3..."
+
+# ── Remove Old AnyKernel ─────────────────────────────────────────
+
+if [ -d "$KERNEL_DIR/AnyKernel3" ]; then
+    rm -rf "$KERNEL_DIR/AnyKernel3"
+fi
+
+# ── Clone AnyKernel3 ─────────────────────────────────────────────
+
+git clone -q \
+    "$ANYKERNEL_REPO" \
+    -b "$ANYKERNEL_BRANCH" \
+    "$KERNEL_DIR/AnyKernel3"
+
+AK_STATUS=$?
+
+if [ "$AK_STATUS" -ne 0 ]; then
+    tg_fail "AnyKernel3 clone failed"
+fi
+
+# ── Configure AnyKernel3 ─────────────────────────────────────────
+
+sed -i \
+    "s/device\.name1=.*/device.name1=courbet/" \
+    "$KERNEL_DIR/AnyKernel3/anykernel.sh"
+
+sed -i \
+    "s/device\.name2=.*/device.name2=courbetin/" \
+    "$KERNEL_DIR/AnyKernel3/anykernel.sh"
+
+# ── Copy Kernel ──────────────────────────────────────────────────
+
+cp "$KERNEL" \
+    "$KERNEL_DIR/AnyKernel3/"
+
+# ── Copy DTBO ────────────────────────────────────────────────────
+
+if [ -f "$DTBO" ]; then
+    cp "$DTBO" "$KERNEL_DIR/AnyKernel3/"
+fi
+
+# ── Copy DTB ─────────────────────────────────────────────────────
+
+if [ -f "$DTB" ]; then
+    cp "$DTB" "$KERNEL_DIR/AnyKernel3/"
+fi
+
+# ── Create ZIP ───────────────────────────────────────────────────
+
+cd "$KERNEL_DIR/AnyKernel3" || exit 1
+
+zip -r9 \
+    "$KERNEL_DIR/$ZIPNAME" \
+    * \
+    -x "*.git*" \
+    -x "*.github*" \
+    > /dev/null
+
+ZIP_STATUS=$?
+
+cd "$KERNEL_DIR" || exit 1
+
+rm -rf "$KERNEL_DIR/AnyKernel3"
+
+if [ "$ZIP_STATUS" -ne 0 ] || [ ! -f "$KERNEL_DIR/$ZIPNAME" ]; then
+    tg_fail "ZIP creation failed"
+fi
+
+# ── Upload ────────────────────────────────────────────────────────
+
+DURATION="$(build_time)"
+ZIP_MD5="$(md5sum "$KERNEL_DIR/$ZIPNAME" | cut -d' ' -f1)"
+
+echo
+echo "Build completed."
+echo "Duration: $DURATION"
+
+FINISH_MSG="✅ Build Finished!
+
+Build took: $DURATION
+MD5: $ZIP_MD5"
+
+if [ -n "$KERNEL_BASE" ]; then
+    FINISH_MSG="$FINISH_MSG
+This kernel is based on $KERNEL_BASE kernel!"
+fi
+
+tg_send_file "$KERNEL_DIR/$ZIPNAME" "$FINISH_MSG"
+
+# ── Done ─────────────────────────────────────────────────────────
+
+echo
+echo "================================================"
+echo " Build Complete"
+echo "================================================"
+echo " Device  : $DEVICE"
+echo " Kernel  : $KNAME"
+echo " Variant : $VAR"
+echo " Output  : $ZIPNAME"
+echo " Duration: $DURATION"
+echo "================================================"
+
