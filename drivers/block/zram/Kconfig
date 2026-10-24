@@ -98,3 +98,52 @@ config ZRAM_MULTI_COMP
 	  When disabled, zram behaves exactly as before (single algorithm).
 
 	  See Documentation/blockdev/zram.txt for more information.
+
+config ZRAM_DEFAULT_RECOMP_ALGORITHM
+	string "Default secondary ZRAM compression algorithm"
+	depends on ZRAM && ZRAM_MULTI_COMP
+	default "lzo"
+	help
+	  Compression algorithm used for automatic recompression.  This is
+	  the secondary algorithm; the primary algorithm configured with
+	  ZRAM_DEFAULT_COMP_ALGORITHM is still used for new writes.
+
+	  LZO is a good default because it is already selected by ZRAM and
+	  is fast enough for background recompression.  A slower algorithm
+	  such as deflate can save more memory, but it also makes reads of
+	  recompressed pages slower.  Leave this empty to disable the
+	  default secondary algorithm.
+
+config ZRAM_AUTO_RECOMP
+	bool "Automatically recompress idle ZRAM pages"
+	depends on ZRAM && ZRAM_MULTI_COMP
+	default y
+	help
+	  Periodically recompress pages that remain untouched for one full
+	  interval.  This runs in small batches in the background, so it
+	  does not need a userspace daemon and does not block the normal
+	  zram read/write path.
+
+	  Pages are marked on one pass and recompressed on the next only if
+	  they have not been accessed in between.  A separate candidate
+	  flag is used, so this does not mark pages idle for writeback.
+	  Disable this if you want to use only the manual recompress sysfs
+	  interface.
+
+config ZRAM_AUTO_RECOMP_INTERVAL
+	int "Seconds between automatic ZRAM recompression passes"
+	depends on ZRAM && ZRAM_MULTI_COMP && ZRAM_AUTO_RECOMP
+	range 5 3600
+	default 30
+	help
+	  Delay between background recompression passes.  A page must stay
+	  untouched for at least one interval before it is recompressed.
+
+config ZRAM_AUTO_RECOMP_PAGES
+	int "Pages scanned per automatic ZRAM recompression pass"
+	depends on ZRAM && ZRAM_MULTI_COMP && ZRAM_AUTO_RECOMP
+	range 64 65536
+	default 2048
+	help
+	  Number of slots examined in each background pass.  Keep this
+	  modest so recompression stays a low-priority background activity.

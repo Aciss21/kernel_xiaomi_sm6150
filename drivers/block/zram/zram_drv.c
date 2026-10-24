@@ -17,6 +17,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/jiffies.h>
 #include <linux/bio.h>
 #include <linux/bitops.h>
 #include <linux/blkdev.h>
@@ -885,6 +886,9 @@ static void zram_debugfs_destroy(void)
 static void zram_accessed(struct zram *zram, u32 index)
 {
 	zram_clear_flag(zram, index, ZRAM_IDLE);
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	zram_clear_flag(zram, index, ZRAM_RECOMP_CANDIDATE);
+#endif
 	zram->table[index].ac_time = ktime_get_boottime();
 }
 
@@ -971,6 +975,9 @@ static void zram_debugfs_destroy(void) {};
 static void zram_accessed(struct zram *zram, u32 index)
 {
 	zram_clear_flag(zram, index, ZRAM_IDLE);
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	zram_clear_flag(zram, index, ZRAM_RECOMP_CANDIDATE);
+#endif
 };
 static void zram_debugfs_register(struct zram *zram) {};
 static void zram_debugfs_unregister(struct zram *zram) {};
@@ -1121,6 +1128,14 @@ out:
 	return ret;
 }
 
+static inline bool zram_has_higher_comp(struct zram *zram, u32 prio)
+{
+	for (prio++; prio < ZRAM_MAX_COMPS; prio++)
+		if (zram->comps[prio])
+			return true;
+	return false;
+}
+
 /*
  * Recompress a single slot. Runs entirely under the slot bit-spinlock, so it
  * never sleeps: the new handle uses the same non-reclaiming GFP flags as the
@@ -1155,6 +1170,8 @@ static int zram_recompress(struct zram *zram, u32 index, struct page *page,
 
 	cur_prio = zram_get_priority(zram, index);
 	if (cur_prio + 1 > prio_max)
+		return 0;
+	if (!zram_has_higher_comp(zram, cur_prio))
 		return 0;
 
 	/* Decompress the current object into the scratch page. */
@@ -1228,6 +1245,92 @@ static int zram_recompress(struct zram *zram, u32 index, struct page *page,
 
 	return 0;
 }
+
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+static void zram_recompress_work(struct work_struct *work)
+{
+	struct zram *zram = container_of(work, struct zram, recomp_work.work);
+	struct page *page;
+	unsigned long nr_pages, index, i, batch;
+
+	if (zram->recomp_stop)
+		return;
+
+	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		goto out;
+
+	down_read(&zram->init_lock);
+	if (!init_done(zram) ||
+	    !zram->comps[ZRAM_PRIMARY_COMP] ||
+	    !zram_has_higher_comp(zram, ZRAM_PRIMARY_COMP))
+		goto out_unlock;
+
+	nr_pages = zram->disksize >> PAGE_SHIFT;
+	if (!nr_pages)
+		goto out_unlock;
+	batch = min_t(unsigned long, CONFIG_ZRAM_AUTO_RECOMP_PAGES, nr_pages);
+
+	/*
+	 * Recompress the batch marked during the previous pass first, then
+	 * mark the next batch.  This gives every page one full interval to be
+	 * accessed before it becomes eligible; reads and writes clear the
+	 * candidate flag.
+	 */
+	if (zram->recomp_primed) {
+		index = zram->recomp_cursor;
+		if (index >= nr_pages)
+			index = 0;
+		for (i = 0; i < batch; i++) {
+			zram_slot_lock(zram, index);
+			if (zram_test_flag(zram, index, ZRAM_RECOMP_CANDIDATE)) {
+				zram_clear_flag(zram, index, ZRAM_RECOMP_CANDIDATE);
+				if (zram_allocated(zram, index))
+					zram_recompress(zram, index, page, 0,
+							ZRAM_MAX_COMPS - 1);
+			}
+			zram_slot_unlock(zram, index);
+			index++;
+			if (index >= nr_pages)
+				index = 0;
+			cond_resched();
+		}
+		zram->recomp_cursor = index;
+	}
+
+	index = zram->mark_cursor;
+	if (index >= nr_pages)
+		index = 0;
+	for (i = 0; i < batch; i++) {
+		zram_slot_lock(zram, index);
+		if (zram_allocated(zram, index) &&
+		    zram_get_obj_size(zram, index) < huge_class_size &&
+		    !zram_test_flag(zram, index, ZRAM_RECOMP_CANDIDATE) &&
+		    !zram_test_flag(zram, index, ZRAM_WB) &&
+		    !zram_test_flag(zram, index, ZRAM_UNDER_WB) &&
+		    !zram_test_flag(zram, index, ZRAM_SAME) &&
+		    !zram_test_flag(zram, index, ZRAM_HUGE) &&
+		    !zram_test_flag(zram, index, ZRAM_INCOMPRESSIBLE) &&
+		    zram_has_higher_comp(zram, zram_get_priority(zram, index)))
+			zram_set_flag(zram, index, ZRAM_RECOMP_CANDIDATE);
+		zram_slot_unlock(zram, index);
+		index++;
+		if (index >= nr_pages)
+			index = 0;
+		cond_resched();
+	}
+	zram->mark_cursor = index;
+	zram->recomp_primed = true;
+
+out_unlock:
+	up_read(&zram->init_lock);
+	__free_page(page);
+out:
+	if (!zram->recomp_stop)
+		schedule_delayed_work(&zram->recomp_work,
+			msecs_to_jiffies(CONFIG_ZRAM_AUTO_RECOMP_INTERVAL * 1000));
+}
+#endif
 
 static ssize_t recompress_store(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t len)
@@ -1463,6 +1566,10 @@ static void zram_free_page(struct zram *zram, size_t index)
 #endif
 	if (zram_test_flag(zram, index, ZRAM_IDLE))
 		zram_clear_flag(zram, index, ZRAM_IDLE);
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	if (zram_test_flag(zram, index, ZRAM_RECOMP_CANDIDATE))
+		zram_clear_flag(zram, index, ZRAM_RECOMP_CANDIDATE);
+#endif
 
 	if (zram_test_flag(zram, index, ZRAM_HUGE)) {
 		zram_clear_flag(zram, index, ZRAM_HUGE);
@@ -2082,15 +2189,26 @@ static ssize_t disksize_store(struct device *dev,
 
 		comp = zcomp_create(zram->comp_algs[prio]);
 		if (IS_ERR(comp)) {
-			pr_err("Cannot initialise %s compressing backend\n",
+			if (prio == ZRAM_PRIMARY_COMP) {
+				pr_err("Cannot initialise %s compressing backend\n",
+						zram->comp_algs[prio]);
+				err = PTR_ERR(comp);
+				goto out_free_comps;
+			}
+			pr_warn("disabling secondary %s compressing backend\n",
 					zram->comp_algs[prio]);
-			err = PTR_ERR(comp);
-			goto out_free_comps;
+			zram->comp_algs[prio][0] = '\0';
+			continue;
 		}
 		zram->comps[prio] = comp;
 	}
 
 	zram->disksize = disksize;
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	zram->recomp_cursor = 0;
+	zram->mark_cursor = 0;
+	zram->recomp_primed = false;
+#endif
 	set_capacity(zram->disk, zram->disksize >> SECTOR_SHIFT);
 
 	revalidate_disk(zram->disk);
@@ -2251,6 +2369,9 @@ static int zram_add(void)
 	device_id = ret;
 
 	init_rwsem(&zram->init_lock);
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	INIT_DELAYED_WORK(&zram->recomp_work, zram_recompress_work);
+#endif
 #ifdef CONFIG_ZRAM_WRITEBACK
 	spin_lock_init(&zram->wb_limit_lock);
 #endif
@@ -2313,11 +2434,21 @@ static int zram_add(void)
 
 	zram->disk->queue->backing_dev_info->capabilities |=
 			(BDI_CAP_STABLE_WRITES | BDI_CAP_SYNCHRONOUS_IO);
+	strlcpy(zram->comp_algs[ZRAM_PRIMARY_COMP], default_compressor,
+		sizeof(zram->comp_algs[ZRAM_PRIMARY_COMP]));
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	if (CONFIG_ZRAM_DEFAULT_RECOMP_ALGORITHM[0])
+		strlcpy(zram->comp_algs[ZRAM_SECONDARY_COMP],
+			CONFIG_ZRAM_DEFAULT_RECOMP_ALGORITHM,
+			sizeof(zram->comp_algs[ZRAM_SECONDARY_COMP]));
+#endif
 	disk_to_dev(zram->disk)->groups = zram_disk_attr_groups;
 	add_disk(zram->disk);
 
-	strlcpy(zram->comp_algs[ZRAM_PRIMARY_COMP], default_compressor,
-		sizeof(zram->comp_algs[ZRAM_PRIMARY_COMP]));
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	schedule_delayed_work(&zram->recomp_work,
+		msecs_to_jiffies(CONFIG_ZRAM_AUTO_RECOMP_INTERVAL * 1000));
+#endif
 
 	zram_debugfs_register(zram);
 	pr_info("Added device: %s\n", zram->disk->disk_name);
@@ -2350,6 +2481,10 @@ static int zram_remove(struct zram *zram)
 	zram->claim = true;
 	mutex_unlock(&bdev->bd_mutex);
 
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	zram->recomp_stop = true;
+	cancel_delayed_work_sync(&zram->recomp_work);
+#endif
 	zram_debugfs_unregister(zram);
 	/* Make sure all the pending I/O are finished */
 	fsync_bdev(bdev);

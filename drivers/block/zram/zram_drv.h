@@ -16,6 +16,7 @@
 #define _ZRAM_DRV_H_
 
 #include <linux/rwsem.h>
+#include <linux/workqueue.h>
 #include <linux/zsmalloc.h>
 #include <linux/crypto.h>
 
@@ -62,6 +63,7 @@ enum zram_pageflags {
 
 	ZRAM_COMP_PRIORITY_BIT1, /* First bit of comp priority index */
 	ZRAM_COMP_PRIORITY_BIT2, /* Second bit of comp priority index */
+	ZRAM_RECOMP_CANDIDATE, /* page is waiting for automatic recompression */
 
 	__NR_ZRAM_PAGEFLAGS,
 };
@@ -117,6 +119,13 @@ struct zram {
 	struct gendisk *disk;
 	/* Prevent concurrent execution of device init */
 	struct rw_semaphore init_lock;
+#ifdef CONFIG_ZRAM_AUTO_RECOMP
+	struct delayed_work recomp_work;
+	unsigned long recomp_cursor;
+	unsigned long mark_cursor;
+	bool recomp_primed;
+	bool recomp_stop;
+#endif
 	/*
 	 * the number of pages zram can consume for storing compressed data
 	 */
