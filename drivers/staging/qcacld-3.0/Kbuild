@@ -1613,6 +1613,7 @@ REGULATORY_OBJS := $(REG_CORE_OBJ_DIR)/reg_build_chan_list.o \
 		    $(REG_CORE_OBJ_DIR)/reg_services_common.o \
 		    $(REG_DISPATCHER_OBJ_DIR)/wlan_reg_tgt_api.o \
 		    $(REG_DISPATCHER_OBJ_DIR)/wlan_reg_ucfg_api.o
+		    
 ifeq ($(CONFIG_HOST_11D_SCAN), y)
 REGULATORY_OBJS += $(REG_CORE_OBJ_DIR)/reg_host_11d.o
 endif
@@ -2297,6 +2298,15 @@ OBJS += $(TXRX3.0_OBJS)
 endif
 
 ccflags-y += $(INCS)
+
+ifdef CONFIG_LLVM_POLLY
+ifeq ($(cc-name),clang)
+# AOSP Clang 22.0.2 crashes in Polly's schedule optimizer on qcacld/qca-wifi
+# translation units. Keep Polly enabled globally, but disable only the
+# crashing schedule optimizer for this driver family.
+ccflags-y += -mllvm -polly-optimizer=none
+endif
+endif
 
 cppflags-y +=	-DANI_OS_TYPE_ANDROID=6 \
 		-Wall\
