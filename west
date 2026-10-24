@@ -1,0 +1,365 @@
+
+#!/usr/bin/env bash
+# ================================================================
+#   Kernel Build Script - courbet
+#   Toolchain: AOSP Clang 14 (r450784d), LLVM only
+#   By: Aciss
+# ================================================================
+
+# ── Project Directory ────────────────────────────────────────────
+
+KERNEL_DIR="$(cd "$(dirname "$0")" && pwd)"
+cd "$KERNEL_DIR" || exit 1
+
+# ── Telegram Config ──────────────────────────────────────────────
+
+TG_TOKEN="${TG_TOKEN:-${GITHUB_TG_TOKEN:-}}"
+TG_CHAT_ID="${TG_CHAT_ID:-${GITHUB_TG_CHAT_ID:-}}"
+
+if [ -z "$TG_TOKEN" ] || [ -z "$TG_CHAT_ID" ]; then
+    echo "Telegram configuration missing!"
+    exit 1
+fi
+
+# ── Build Config ─────────────────────────────────────────────────
+
+DEVICE="courbet"
+DEVICE_NAME="Xiaomi Mi 11 Lite 4G"
+KNAME="shirayuki"
+VAR="aosp"
+
+ROOT="KSU"
+KERNEL_BASE=""
+
+ZIPNAME="${KNAME}-${VAR}-${ROOT}.zip"
+
+ANYKERNEL_REPO="https://github.com/Aciss21/AnyKernel3.git"
+ANYKERNEL_BRANCH="master"
+
+DEFCONFIG="vendor/courbet_defconfig"
+
+# ── Toolchain Config ─────────────────────────────────────────────
+
+TOOLS_DIR="$KERNEL_DIR/chain"
+
+CLANG_REPO="https://github.com/droidian/android-platform-prebuilts-clang-host-linux-x86-33.git"
+CLANG_BRANCH="droidian"
+CLANG_VER="clang-r450784d"
+
+CLANG_DIR="$TOOLS_DIR/$CLANG_VER"
+LLVM_BINUTILS_DIR="$TOOLS_DIR/llvm-binutils-stable"
+
+# ── Output Paths ─────────────────────────────────────────────────
+
+OUT="$KERNEL_DIR/out"
+
+KERNEL="$OUT/arch/arm64/boot/Image.gz"
+DTBO="$OUT/arch/arm64/boot/dtbo.img"
+DTB="$OUT/arch/arm64/boot/dtb.img"
+
+BUILD_LOG="$KERNEL_DIR/build.log"
+
+# ── Exports ──────────────────────────────────────────────────────
+
+export ARCH=arm64
+export SUBARCH=arm64
+
+export KBUILD_BUILD_USER="Aciss"
+export KBUILD_BUILD_HOST="NeRv-Company"
+
+SECONDS=0
+
+# ── Build Info ───────────────────────────────────────────────────
+
+DOCKER_OS="$(grep -oP '(?<=^PRETTY_NAME=").*(?=")' /etc/os-release 2>/dev/null)"
+DOCKER_OS="${DOCKER_OS:-$(uname -sr)}"
+
+DATE="$(TZ=Asia/Jakarta date +"%-d %B %Y, %H:%M WIB")"
+
+KERNEL_VERSION="$(make -s -C "$KERNEL_DIR" kernelversion 2>/dev/null)"
+KERNEL_VERSION="${KERNEL_VERSION:-Unknown}"
+
+# ── Telegram Functions ───────────────────────────────────────────
+
+build_time() {
+    echo "$((SECONDS / 60)) minutes $((SECONDS % 60)) seconds"
+}
+
+tg_send() {
+    curl -fsS -X POST \
+        "https://api.telegram.org/bot${TG_TOKEN}/sendMessage" \
+        -d "chat_id=${TG_CHAT_ID}" \
+        --data-urlencode "text=$1" \
+        > /dev/null
+}
+
+tg_send_file() {
+    curl -fsS \
+        -F "document=@$1" \
+        -F "chat_id=$TG_CHAT_ID" \
+        --form-string "caption=$2" \
+        "https://api.telegram.org/bot${TG_TOKEN}/sendDocument" \
+        > /dev/null
+}
+
+tg_fail() {
+    local reason="$1"
+    local logfile="${2:-}"
+    local msg
+
+    msg="❌ Build Failed!
+
+Reason: $reason
+Build took: $(build_time)"
+
+    echo
+    echo "Build failed: $reason"
+
+    if [ -n "$logfile" ] && [ -f "$logfile" ]; then
+        tg_send_file "$logfile" "$msg"
+    else
+        tg_send "$msg"
+    fi
+
+    exit 1
+}
+
+# ── Header ───────────────────────────────────────────────────────
+
+echo "================================================"
+echo "       KUDA ASELI NAIL KUDA BESI"
+echo "================================================"
+echo " Device  : $DEVICE"
+echo " Kernel  : $KNAME"
+echo " Variant : $VAR"
+echo " Builder : $KBUILD_BUILD_USER@$KBUILD_BUILD_HOST"
+echo " Output  : $ZIPNAME"
+echo "================================================"
+
+# ── Step 0: Setup AOSP Clang ─────────────────────────────────────
+
+echo "[0/4] Setting up AOSP Clang 14..."
+
+if [ ! -x "$CLANG_DIR/bin/clang" ]; then
+    echo "Downloading AOSP Clang 14..."
+
+    mkdir -p "$TOOLS_DIR" || tg_fail "Cannot create toolchain directory"
+
+    git clone -q --depth=1 --filter=blob:none --sparse \
+        -b "$CLANG_BRANCH" \
+        "$CLANG_REPO" "$TOOLS_DIR" \
+        || tg_fail "AOSP Clang repository clone failed"
+
+    git -C "$TOOLS_DIR" sparse-checkout set \
+        "$CLANG_VER" \
+        "llvm-binutils-stable" \
+        || tg_fail "Toolchain sparse checkout failed"
+fi
+
+# Verify compiler
+[ -x "$CLANG_DIR/bin/clang" ] \
+    || tg_fail "Clang binary not found"
+
+# ── LLVM PATH ────────────────────────────────────────────────────
+
+export PATH="$CLANG_DIR/bin:$LLVM_BINUTILS_DIR/bin:$LLVM_BINUTILS_DIR:$PATH"
+export LD_LIBRARY_PATH="$CLANG_DIR/lib64:$CLANG_DIR/lib:${LD_LIBRARY_PATH:-}"
+
+export CC=clang
+export LLVM=1
+export LLVM_IAS=1
+
+# LLVM=1 replaces the traditional CROSS_COMPILE toolchain.
+unset CROSS_COMPILE
+unset CROSS_COMPILE_ARM32
+unset CLANG_TRIPLE
+
+# Ensure no GCC is required by the selected LLVM tools.
+for tool in clang ld.lld llvm-ar llvm-nm llvm-objcopy llvm-objdump llvm-strip; do
+    if ! command -v "$tool" >/dev/null 2>&1; then
+        tg_fail "Required LLVM tool missing: $tool"
+    fi
+done
+
+echo "Clang  : $(clang --version | head -n1)"
+echo "Linker : $(ld.lld --version | head -n1)"
+echo "LLVM   : $(command -v llvm-ar)"
+echo "GCC    : Disabled"
+
+CLANG_VERSION="$(clang --version | head -n1)"
+
+tg_send "⚙️ Toolchain Ready
+
+Compiler: AOSP Clang 14
+Revision: $CLANG_VER
+GCC: Disabled
+LTO: Disabled"
+
+# ── Telegram: Build Triggered ────────────────────────────────────
+
+tg_send "🔨 Kernel Build Triggered
+
+Docker OS: $DOCKER_OS
+Date: $DATE
+Device: $DEVICE_NAME
+Codename: $DEVICE
+Kernel Version: $KERNEL_VERSION
+Root: $ROOT
+Compiler: AOSP $CLANG_VERSION"
+
+# ── Step 1: Clean ────────────────────────────────────────────────
+
+if [[ "$1" == "-c" || "$1" == "--clean" ]]; then
+    echo "[1/4] Cleaning output..."
+    rm -rf "$OUT"
+fi
+
+# ── Step 2: Defconfig ────────────────────────────────────────────
+
+echo "[2/4] Loading defconfig..."
+echo "Working directory: $KERNEL_DIR"
+echo "Defconfig: arch/arm64/configs/$DEFCONFIG"
+
+make O="$OUT" \
+    ARCH=arm64 \
+    CC=clang \
+    LLVM=1 \
+    LLVM_IAS=1 \
+    "$DEFCONFIG"
+
+DEFCONFIG_STATUS=$?
+
+if [ "$DEFCONFIG_STATUS" -ne 0 ]; then
+    tg_fail "Defconfig failed"
+fi
+
+echo "Defconfig loaded successfully."
+
+# ── Step 3: Compile ──────────────────────────────────────────────
+
+echo "[3/4] Compiling kernel..."
+
+THREADS="$(nproc --all)"
+rm -f "$BUILD_LOG"
+
+make -j"$THREADS" \
+    O="$OUT" \
+    ARCH=arm64 \
+    CC=clang \
+    LLVM=1 \
+    LLVM_IAS=1 \
+    2>&1 | tee "$BUILD_LOG"
+
+BUILD_STATUS=${PIPESTATUS[0]}
+
+if [ "$BUILD_STATUS" -ne 0 ] || [ ! -f "$KERNEL" ]; then
+    tg_fail "Kernel compilation failed" "$BUILD_LOG"
+fi
+
+echo
+echo "Kernel compiled successfully."
+echo "Image: $KERNEL"
+
+# ── Step 4: Package AnyKernel3 ───────────────────────────────────
+
+echo "[4/4] Packaging AnyKernel3..."
+
+rm -rf "$KERNEL_DIR/AnyKernel3"
+
+git clone -q \
+    -b "$ANYKERNEL_BRANCH" \
+    "$ANYKERNEL_REPO" \
+    "$KERNEL_DIR/AnyKernel3"
+
+AK_STATUS=$?
+
+if [ "$AK_STATUS" -ne 0 ]; then
+    tg_fail "AnyKernel3 clone failed"
+fi
+
+AK_DIR="$KERNEL_DIR/AnyKernel3"
+
+# ── Configure Device ─────────────────────────────────────────────
+
+sed -i \
+    's/device\.name1=.*/device.name1=courbet/' \
+    "$AK_DIR/anykernel.sh"
+
+sed -i \
+    's/device\.name2=.*/device.name2=courbetin/' \
+    "$AK_DIR/anykernel.sh"
+
+# ── Copy Kernel ──────────────────────────────────────────────────
+
+cp "$KERNEL" "$AK_DIR/" \
+    || tg_fail "Failed to copy kernel image"
+
+# ── Copy DTBO ────────────────────────────────────────────────────
+
+if [ -f "$DTBO" ]; then
+    cp "$DTBO" "$AK_DIR/" \
+        || tg_fail "Failed to copy DTBO"
+fi
+
+# ── Copy DTB ─────────────────────────────────────────────────────
+
+if [ -f "$DTB" ]; then
+    cp "$DTB" "$AK_DIR/" \
+        || tg_fail "Failed to copy DTB"
+fi
+
+# ── Create ZIP ───────────────────────────────────────────────────
+
+cd "$AK_DIR" || tg_fail "Cannot enter AnyKernel3 directory"
+
+rm -f "$KERNEL_DIR/$ZIPNAME"
+
+zip -r9 "$KERNEL_DIR/$ZIPNAME" \
+    . \
+    -x "*.git*" \
+    -x "*.github*" \
+    > /dev/null
+
+ZIP_STATUS=$?
+
+cd "$KERNEL_DIR" || exit 1
+
+rm -rf "$AK_DIR"
+
+if [ "$ZIP_STATUS" -ne 0 ] || [ ! -f "$KERNEL_DIR/$ZIPNAME" ]; then
+    tg_fail "ZIP creation failed"
+fi
+
+# ── Upload ───────────────────────────────────────────────────────
+
+DURATION="$(build_time)"
+ZIP_MD5="$(md5sum "$KERNEL_DIR/$ZIPNAME" | cut -d' ' -f1)"
+
+echo
+echo "Build completed."
+echo "Duration: $DURATION"
+
+FINISH_MSG="✅ Build Finished!
+
+Build took: $DURATION
+MD5: $ZIP_MD5"
+
+if [ -n "$KERNEL_BASE" ]; then
+    FINISH_MSG="$FINISH_MSG
+This kernel is based on $KERNEL_BASE kernel!"
+fi
+
+tg_send_file "$KERNEL_DIR/$ZIPNAME" "$FINISH_MSG"
+
+# ── Done ─────────────────────────────────────────────────────────
+
+echo
+echo "================================================"
+echo " Build Complete"
+echo "================================================"
+echo " Device  : $DEVICE"
+echo " Kernel  : $KNAME"
+echo " Variant : $VAR"
+echo " Output  : $ZIPNAME"
+echo " Duration: $DURATION"
+echo "================================================"
