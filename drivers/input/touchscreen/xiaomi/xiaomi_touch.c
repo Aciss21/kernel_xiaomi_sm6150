@@ -478,7 +478,7 @@ static int xiaomi_touch_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	mi_log_level = TOUCH_ERROR;
+	mi_log_level = TOUCH_INFO;
 
 	MI_TOUCH_LOGI(1, "%s %s: enter\n", MI_TAG, __func__);
 

@@ -15,4 +15,4 @@ do
     echo ""
 done
 
-echo "Defconfig generation completed for all devices."
+echo "Defconfig generation completed for ${devices}"
