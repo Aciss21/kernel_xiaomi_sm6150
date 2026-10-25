@@ -113,6 +113,31 @@ extern unsigned int sysctl_sched_autogroup_enabled;
 extern int sysctl_sched_rr_timeslice;
 extern int sched_rr_timeslice;
 
+extern int sched_rr_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp,
+		loff_t *ppos);
+
+extern int sched_rt_handler(struct ctl_table *table, int write,
+		void *buffer, size_t *lenp,
+		loff_t *ppos);
+
+#ifdef CONFIG_UCLAMP_TASK
+extern int sysctl_sched_uclamp_handler(struct ctl_table *table, int write,
+				       void *buffer, size_t *lenp,
+				       loff_t *ppos);
+#endif
+
+extern int sched_updown_migrate_handler(struct ctl_table *table,
+					int write, void *buffer,
+					size_t *lenp, loff_t *ppos);
+
+extern int sysctl_numa_balancing(struct ctl_table *table, int write,
+				 void *buffer, size_t *lenp,
+				 loff_t *ppos);
+
+extern int sysctl_schedstats(struct ctl_table *table, int write,
+				 void *buffer, size_t *lenp,
+				 loff_t *ppos);
 int sched_rr_handler(struct ctl_table *table, int write, void *buffer,
 		size_t *lenp, loff_t *ppos);
 int sched_rt_handler(struct ctl_table *table, int write, void *buffer,
@@ -126,16 +151,16 @@ int sysctl_schedstats(struct ctl_table *table, int write, void *buffer,
 
 #ifdef CONFIG_SCHED_WALT
 extern int sched_little_cluster_coloc_fmin_khz_handler(struct ctl_table *table,
-					int write, void *buffer,
-					size_t *lenp, loff_t *ppos);
+int write, void *buffer,
+size_t *lenp, loff_t *ppos);
 #endif
 
 #define LIB_PATH_LENGTH 512
 extern char sched_lib_name[LIB_PATH_LENGTH];
 extern unsigned int sched_lib_mask_force;
 extern int sysctl_sched_lib_name_handler(struct ctl_table *table, int write,
-					 void *buffer, size_t *lenp,
-					 loff_t *ppos);
+void *buffer, size_t *lenp,
+loff_t *ppos);
 extern bool is_sched_lib_based_app(pid_t pid);
 
 #endif /* _LINUX_SCHED_SYSCTL_H */
