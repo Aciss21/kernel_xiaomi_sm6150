@@ -54,6 +54,15 @@ jobs:
             -e 's/qcom,mdss-pan-physical-width-dimension = <69>;/qcom,mdss-pan-physical-width-dimension = <695>;/' \
             -e 's/qcom,mdss-pan-physical-height-dimension = <154>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' \
             "$DTS"
+          sed -i \
+            -e 's/^# CONFIG_UPROBES is not set$/CONFIG_UPROBES=y/' \
+            -e 's/^# CONFIG_FTRACE is not set$/CONFIG_FTRACE=y/' \
+            -e 's/^# CONFIG_VSOCKETS is not set$/CONFIG_VSOCKETS=y/' \
+            arch/arm64/configs/vendor/sweet_defconfig
+          sed -i '/^CONFIG_BPF_SYSCALL=y$/a CONFIG_UPROBE_EVENTS=y' \
+            arch/arm64/configs/vendor/sweet_defconfig
+          sed -i '/^CONFIG_UPROBE_EVENTS=y$/a CONFIG_BPF_EVENTS=y' \
+            arch/arm64/configs/vendor/sweet_defconfig
 
       - name: 🛠️ Build Kernel
         run: |
