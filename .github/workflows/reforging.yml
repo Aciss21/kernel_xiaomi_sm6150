@@ -34,6 +34,7 @@ jobs:
 
           echo "BUILD_TIME=$(TZ=Asia/Jakarta date '+%d%m%Y-%H%M')" >> "$GITHUB_ENV"
           echo "BUILD_DATE=\"$(TZ=Asia/Jakarta date '+%b %d %Y')\"" >> "$GITHUB_ENV"
+          echo "BUILD_REF=${GITHUB_REF_NAME//\//-}" >> "$GITHUB_ENV"
           echo "CLANG_PATH=$GITHUB_WORKSPACE/clang" >> "$GITHUB_ENV"
           echo "GCC64_PATH=$GITHUB_WORKSPACE/gcc64" >> "$GITHUB_ENV"
           echo "GCC32_PATH=$GITHUB_WORKSPACE/gcc32" >> "$GITHUB_ENV"
@@ -53,6 +54,15 @@ jobs:
             -e 's/qcom,mdss-pan-physical-width-dimension = <69>;/qcom,mdss-pan-physical-width-dimension = <695>;/' \
             -e 's/qcom,mdss-pan-physical-height-dimension = <154>;/qcom,mdss-pan-physical-height-dimension = <1546>;/' \
             "$DTS"
+          sed -i \
+            -e 's/^# CONFIG_UPROBES is not set$/CONFIG_UPROBES=y/' \
+            -e 's/^# CONFIG_FTRACE is not set$/CONFIG_FTRACE=y/' \
+            -e 's/^# CONFIG_VSOCKETS is not set$/CONFIG_VSOCKETS=y/' \
+            arch/arm64/configs/vendor/sweet_defconfig
+          sed -i '/^CONFIG_BPF_SYSCALL=y$/a CONFIG_UPROBE_EVENTS=y' \
+            arch/arm64/configs/vendor/sweet_defconfig
+          sed -i '/^CONFIG_UPROBE_EVENTS=y$/a CONFIG_BPF_EVENTS=y' \
+            arch/arm64/configs/vendor/sweet_defconfig
 
       - name: 🛠️ Build Kernel
         run: |
@@ -80,10 +90,10 @@ jobs:
         run: |
           git clone --depth=1 -b reforge https://github.com/manipvlator/Anykernel3.git AnyKernel3
           cp out/arch/arm64/boot/{Image.gz,dtbo.img,dtb.img} AnyKernel3/
-          (cd AnyKernel3 && zip -r "../reforge_${{ matrix.build_type }}-${{ github.ref_name }}-${BUILD_TIME}.zip" . -x ".git/*")
+          (cd AnyKernel3 && zip -r "../reforge_${{ matrix.build_type }}-${BUILD_REF}-${BUILD_TIME}.zip" . -x ".git/*")
 
       - name: 📤 Upload Flashable ZIP
         uses: actions/upload-artifact@v7
         with:
-          name: reforge_${{ matrix.build_type }}-${{ github.ref_name }}-${{ env.BUILD_TIME }}
+          name: reforge_${{ matrix.build_type }}-${{ env.BUILD_REF }}-${{ env.BUILD_TIME }}
           path: AnyKernel3/*

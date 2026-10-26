@@ -1162,7 +1162,7 @@ void reg_dmav1_setup_dspp_pccv4(struct sde_hw_dspp *ctx, void *cfg)
 	if (rc)
 		DRM_ERROR("failed to kick off ret %d\n", rc);
 
-	if (kcal->enabled)
+	if (kcal->enabled && sde_hw_kcal_hsic_is_custom(kcal))
 		reg_dmav1_setup_dspp_pa_hsicv17_kcal(ctx, hw_cfg->ctl);
 exit:
 	kfree(data);
@@ -1175,7 +1175,7 @@ void reg_dmav1_setup_dspp_pa_hsicv17(struct sde_hw_dspp *ctx, void *cfg)
 	u32 opcode = 0;
 	int rc;
 
-	if (kcal->enabled)
+	if (kcal->enabled && sde_hw_kcal_hsic_is_custom(kcal))
 		return;
 
 	opcode = SDE_REG_READ(&ctx->hw, ctx->cap->sblk->hsic.base);

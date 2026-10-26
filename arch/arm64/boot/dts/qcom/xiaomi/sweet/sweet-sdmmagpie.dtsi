@@ -640,6 +640,15 @@ And public attribution of xiaomi platforms(like F3 and so and)
 	thermal_message: thermal-message {
 		board-sensor = "VIRTUAL-SENSOR";
 	};
+	irda_regulator: irda-regulator {
+		compatible = "regulator-dummy";
+		regulator-name = "irda_regulator";
+	};
+};
+
+&mdss_dsi_phy0 {
+        qcom,panel-allow-phy-poweroff;
+        qcom,ulps-enabled;
 };
 
 /* Enlarge TZ memory size to 62M */
@@ -996,7 +1005,51 @@ And public attribution of xiaomi platforms(like F3 and so and)
 		};
 	};
 
+	/*
+	 * Battery-current protection (BCL) used to force CPU6/CPU7 to their
+	 * lowest cooling state.  On sweet this kicks in at moderate battery
+	 * temperatures and makes the UI fall off a cliff.  Keep the BCL zones
+	 * available for monitoring, but do not let them throttle the big
+	 * cluster; the CPU and PMIC thermal zones still protect the silicon.
+	 */
+	pm6150-bcl-lvl0 {
+		cooling-maps {
+			vbat_cpu6 {
+				cooling-device = <&CPU6 0 0>;
+			};
+			vbat_cpu7 {
+				cooling-device = <&CPU7 0 0>;
+			};
+		};
+	};
+
+	pm6150-bcl-lvl1 {
+		cooling-maps {
+			ibat_cpu6 {
+				cooling-device = <&CPU6 0 0>;
+			};
+			ibat_cpu7 {
+				cooling-device = <&CPU7 0 0>;
+			};
+		};
+	};
+
+	pm6150-bcl-lvl2 {
+		cooling-maps {
+			ibat_cpu6 {
+				cooling-device = <&CPU6 0 0>;
+			};
+			ibat_cpu7 {
+				cooling-device = <&CPU7 0 0>;
+			};
+		};
+	};
+
 	quiet-therm-step {
+		disable-thermal-zone;
+	};
+
+	soc {
 		disable-thermal-zone;
 	};
 };
