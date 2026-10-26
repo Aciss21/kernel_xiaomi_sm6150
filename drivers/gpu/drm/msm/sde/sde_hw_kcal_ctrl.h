@@ -42,6 +42,22 @@ struct sde_hw_kcal {
 	u32 min_value;
 };
 
+/**
+ * sde_hw_kcal_hsic_is_custom() - check whether KCAL overrides HSIC
+ * @kcal: KCAL state
+ *
+ * KCAL's neutral HSIC values are the power-on defaults. Treat them as
+ * "not configured" so the display HAL can program LiveDisplay picture
+ * adjustment. Once any HSIC value is changed, KCAL owns HSIC.
+ */
+static inline bool sde_hw_kcal_hsic_is_custom(const struct sde_hw_kcal *kcal)
+{
+	return kcal->hsic.hue != SDE_HW_KCAL_INIT_HUE ||
+	       kcal->hsic.saturation != SDE_HW_KCAL_INIT_ADJ ||
+	       kcal->hsic.value != SDE_HW_KCAL_INIT_ADJ ||
+	       kcal->hsic.contrast != SDE_HW_KCAL_INIT_ADJ;
+}
+
 #ifdef CONFIG_DRM_MSM_KCAL_CTRL
 /**
  * sde_hw_kcal_get() - get a handle to internal kcal calibration plan.
